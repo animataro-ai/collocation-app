@@ -1,0 +1,651 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Nunito:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f4f1ec; --surface: #ffffff; --surface2: #edeae4; --border: #ccc9c2;
+    --text: #1c1c1e; --text2: #6b6762; --accent: #2d6a4f; --accent-light: #e8f4f0;
+    --accent2: #1a5276; --accent2-light: #e8f1f8; --danger: #a93226;
+    --danger-light: #fdf0ee; --success: #1e6b3a; --success-light: #eaf7ee;
+    --warning: #b7770d; --warning-light: #fef9ec; --radius: 10px;
+  }
+  body { background: var(--bg); color: var(--text); font-family: 'Nunito', sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
+  #app { width: 100%; max-width: 480px; }
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* HOME */
+  .home-header { text-align: center; margin-bottom: 28px; }
+  .home-logo { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 42px; color: var(--accent); letter-spacing: -2px; line-height: 1; }
+  .home-sub { font-family: 'Outfit', sans-serif; font-size: 12px; color: var(--text2); margin-top: 6px; letter-spacing: 4px; text-transform: uppercase; font-weight: 600; }
+  .stats-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 16px; }
+  .stat-card { background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius); padding: 14px 10px; text-align: center; }
+  .stat-num { font-family: 'Outfit', sans-serif; font-size: 30px; color: var(--accent); font-weight: 800; line-height: 1; }
+  .stat-label { font-family: 'Outfit', sans-serif; font-size: 10px; color: var(--text2); margin-top: 4px; letter-spacing: 2px; text-transform: uppercase; font-weight: 600; }
+  .session-breakdown { background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 14px; }
+  .sb-title { font-family: 'Outfit', sans-serif; font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 3px; font-weight: 700; margin-bottom: 12px; }
+  .sb-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+  .sb-row:last-child { border-bottom: none; }
+  .sb-label { font-family: 'Nunito', sans-serif; font-weight: 500; color: var(--text2); }
+  .sb-val { font-family: 'Space Mono', monospace; font-size: 13px; font-weight: 700; }
+  .sb-val.review { color: var(--warning); }
+  .sb-val.new { color: var(--accent2); }
+  .sb-val.total { color: var(--accent); }
+  .overflow-notice { background: var(--warning-light); border: 2px solid #e6c06a; border-radius: var(--radius); padding: 12px 14px; margin-bottom: 14px; font-family: 'Nunito', sans-serif; font-size: 13px; color: var(--warning); font-weight: 600; display: none; }
+  .overflow-notice.show { display: block; }
+  .highscore-row { background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius); padding: 12px 16px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; }
+  .hs-label { font-family: 'Outfit', sans-serif; font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 2px; font-weight: 700; }
+  .hs-val { font-family: 'Space Mono', monospace; font-size: 18px; color: var(--accent); font-weight: 700; }
+  .btn { width: 100%; padding: 15px; border-radius: var(--radius); border: none; font-family: 'Outfit', sans-serif; font-size: 16px; font-weight: 700; cursor: pointer; transition: all 0.15s; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #235a42; }
+
+  /* SRS DEBUG PANEL */
+  .srs-panel { background: var(--surface2); border: 2px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 14px; }
+  .srs-panel-title { font-family: 'Outfit', sans-serif; font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 2px; font-weight: 700; margin-bottom: 10px; }
+  .srs-item { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+  .srs-item:last-child { border-bottom: none; }
+  .srs-col { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--text); flex: 1; }
+  .srs-level { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 13px; margin: 0 8px; }
+  .srs-next { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--text2); }
+  .level-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
+  .btn-sim { width: 100%; padding: 10px; border-radius: var(--radius); border: 2px solid var(--border); background: var(--surface); color: var(--text2); font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; margin-bottom: 8px; }
+  .btn-sim:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* COMMON */
+  .progress-bar { height: 5px; background: var(--border); border-radius: 3px; margin-bottom: 16px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.4s ease; }
+  .phase-label { font-family: 'Outfit', sans-serif; font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 3px; margin-bottom: 4px; font-weight: 700; }
+  .phase-badge { display: inline-block; background: var(--warning-light); border: 1px solid #e6c06a; border-radius: 6px; padding: 2px 10px; font-family: 'Outfit', sans-serif; font-size: 11px; color: var(--warning); font-weight: 700; margin-left: 8px; vertical-align: middle; }
+  .phase-badge.new-badge { background: var(--accent2-light); border-color: #9ab8d4; color: var(--accent2); }
+  .counter { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--text2); text-align: right; margin-bottom: 12px; }
+  .collocation-card { background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius); padding: 22px 20px; margin-bottom: 12px; }
+  .collocation-main { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 32px; color: var(--accent); margin-bottom: 4px; letter-spacing: -1px; line-height: 1.1; }
+  .collocation-type { font-family: 'Outfit', sans-serif; font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 3px; margin-bottom: 14px; font-weight: 700; }
+  .example-label { font-family: 'Outfit', sans-serif; font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 3px; margin-bottom: 6px; font-weight: 700; }
+  .example-text { font-family: 'Nunito', sans-serif; font-size: 15px; line-height: 1.8; color: var(--text); }
+  .example-text mark { background: none; color: var(--accent); font-style: normal; font-weight: 800; }
+  .explanation-card { background: var(--surface2); border: 2px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 12px; }
+  .explanation-text { font-family: 'Nunito', sans-serif; font-size: 14px; line-height: 1.8; color: var(--text); font-weight: 500; }
+  .similar-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .similar-tag { background: var(--accent2-light); border: 1px solid #9ab8d4; border-radius: 6px; padding: 3px 9px; font-size: 11px; font-family: 'Space Mono', monospace; color: var(--accent2); }
+  .opposite-tag { background: var(--danger-light); border: 1px solid #d9a39a; border-radius: 6px; padding: 3px 9px; font-size: 11px; font-family: 'Space Mono', monospace; color: var(--danger); }
+  .btn-trio-top { margin-bottom: 8px; }
+  .btn-known { width: 100%; padding: 12px; border-radius: var(--radius); border: 2px solid var(--accent2); background: var(--accent2-light); color: var(--accent2); font-family: 'Outfit', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; }
+  .btn-known:hover { background: #d0e4f2; }
+  .btn-trio { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .btn-got { padding: 13px; border-radius: var(--radius); border: none; background: var(--success); color: #fff; font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; }
+  .btn-got:hover { background: #185e31; }
+  .btn-return { padding: 13px; border-radius: var(--radius); border: 2px solid var(--border); background: var(--surface); color: var(--text); font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .btn-return:hover { border-color: var(--accent); }
+  .timer-row { display: flex; align-items: center; justify-content: center; margin-bottom: 14px; }
+  .timer-circle { width: 56px; height: 56px; border-radius: 50%; background: var(--surface); border: 3px solid var(--accent); display: inline-flex; align-items: center; justify-content: center; font-family: 'Outfit', sans-serif; font-size: 20px; color: var(--accent); font-weight: 800; transition: all 0.3s; }
+  .timer-circle.warning { border-color: var(--danger); color: var(--danger); }
+  .blank-sentence { font-family: 'Nunito', sans-serif; font-size: 16px; line-height: 1.9; color: var(--text); background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius); padding: 18px; margin-bottom: 12px; font-weight: 600; }
+  .blank { display: inline-block; min-width: 110px; border-bottom: 3px solid var(--accent); color: var(--accent); font-family: 'Space Mono', monospace; font-weight: 700; text-align: center; }
+  .choices-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .choice-btn { padding: 14px 10px; border-radius: var(--radius); border: 2px solid var(--border); background: var(--surface); color: var(--text); font-family: 'Space Mono', monospace; font-size: 12px; cursor: pointer; transition: all 0.15s; text-align: center; line-height: 1.5; }
+  .choice-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+  .choice-btn.correct { border-color: var(--success); background: var(--success-light); color: var(--success); font-weight: 700; }
+  .choice-btn.wrong { border-color: var(--danger); background: var(--danger-light); color: var(--danger); }
+  .choice-btn:disabled { cursor: default; }
+  .feedback-box { border-radius: var(--radius); padding: 12px 14px; margin-bottom: 10px; font-family: 'Nunito', sans-serif; font-size: 14px; line-height: 1.7; display: none; font-weight: 700; }
+  .feedback-box.correct { background: var(--success-light); border: 2px solid var(--success); color: var(--success); display: block; }
+  .feedback-box.wrong { background: var(--danger-light); border: 2px solid var(--danger); color: var(--danger); display: block; }
+  .score-pop { text-align: right; font-family: 'Space Mono', monospace; font-size: 13px; color: var(--accent); font-weight: 700; margin-bottom: 4px; min-height: 20px; }
+
+  /* ROLEPLAY */
+  .rp-scene { background: var(--surface2); border: 2px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 14px; }
+  .rp-scene-label { font-family: 'Outfit', sans-serif; font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 3px; font-weight: 700; margin-bottom: 5px; }
+  .rp-scene-text { font-family: 'Nunito', sans-serif; font-size: 14px; color: var(--text); font-weight: 500; line-height: 1.6; }
+  .rp-bubble-wrap { margin-bottom: 10px; }
+  .rp-speaker { font-family: 'Outfit', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 5px; color: var(--text2); }
+  .rp-bubble { border-radius: var(--radius); padding: 14px 16px; font-family: 'Nunito', sans-serif; font-size: 14px; line-height: 1.75; font-weight: 600; }
+  .rp-bubble.manager { background: var(--surface); border: 2px solid var(--border); border-top-left-radius: 2px; }
+  .rp-bubble.user { background: var(--accent-light); border: 2px solid #a8d5c5; border-top-right-radius: 2px; color: var(--accent); }
+  .rp-bubble.reply { background: var(--surface2); border: 2px solid var(--border); border-top-left-radius: 2px; font-style: italic; }
+  .rp-input-area { margin-bottom: 10px; }
+  .rp-textarea { width: 100%; background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius); padding: 12px 14px; color: var(--text); font-family: 'Nunito', sans-serif; font-size: 14px; font-weight: 600; outline: none; resize: none; transition: border-color 0.15s; min-height: 72px; line-height: 1.6; }
+  .rp-textarea:focus { border-color: var(--accent); }
+  .rp-btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+  .rp-submit { padding: 13px; border-radius: var(--radius); border: none; background: var(--accent); color: #fff; font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; }
+  .rp-skip { padding: 13px; border-radius: var(--radius); border: 2px solid var(--border); background: var(--surface); color: var(--text2); font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .rp-loading { text-align: center; padding: 14px; color: var(--text2); font-family: 'Outfit', sans-serif; font-size: 14px; font-weight: 600; letter-spacing: 1px; display: none; }
+  .rp-loading.show { display: block; }
+  .dot-anim::after { content: '.'; animation: dots 1.2s steps(3,end) infinite; }
+  @keyframes dots { 0%,20%{content:'.'} 40%{content:'..'} 60%,100%{content:'...'} }
+
+  /* RESULT */
+  .result-score-main { text-align: center; margin-bottom: 22px; }
+  .score-display { font-family: 'Outfit', sans-serif; font-size: 68px; color: var(--accent); line-height: 1; font-weight: 800; letter-spacing: -3px; }
+  .score-label { font-family: 'Outfit', sans-serif; font-size: 12px; color: var(--text2); text-transform: uppercase; letter-spacing: 3px; margin-top: 4px; font-weight: 700; }
+  .bonus-card { background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 14px; }
+  .bonus-title { font-family: 'Outfit', sans-serif; font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 3px; font-weight: 700; margin-bottom: 10px; }
+  .bonus-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .bonus-row:last-child { border-bottom: none; font-weight: 700; }
+  .bonus-label { font-family: 'Nunito', sans-serif; font-weight: 500; color: var(--text2); }
+  .bonus-val { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--text); font-weight: 700; }
+  .bonus-row:last-child .bonus-val { color: var(--accent); font-size: 14px; }
+  .result-list { background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 14px; }
+  .result-list-title { font-family: 'Outfit', sans-serif; font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 3px; font-weight: 700; padding: 10px 14px; border-bottom: 2px solid var(--border); }
+  .result-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .result-item:last-child { border-bottom: none; }
+  .result-left { flex: 1; }
+  .result-collocation { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--text); }
+  .result-phase { font-family: 'Outfit', sans-serif; font-size: 10px; color: var(--text2); margin-top: 2px; }
+  .result-score { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--accent); font-weight: 700; margin-right: 10px; }
+  .result-ok { color: var(--success); font-size: 16px; font-weight: 800; font-family: 'Outfit', sans-serif; }
+  .result-ng { color: var(--danger); font-size: 16px; font-weight: 800; font-family: 'Outfit', sans-serif; }
+  .highscore-banner { background: var(--accent-light); border: 2px solid #a8d5c5; border-radius: var(--radius); padding: 12px; text-align: center; margin-bottom: 14px; display: none; }
+  .highscore-banner.show { display: block; }
+  .highscore-text { font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 800; color: var(--accent); }
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- HOME -->
+<div class="screen active" id="screen-home">
+  <div class="home-header">
+    <div class="home-logo">Collocation</div>
+    <div class="home-sub">A1 Learning System</div>
+  </div>
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-num" id="stat-total">5</div><div class="stat-label">Today</div></div>
+    <div class="stat-card"><div class="stat-num" id="stat-mastered">0</div><div class="stat-label">Mastered</div></div>
+    <div class="stat-card"><div class="stat-num" id="stat-streak">1</div><div class="stat-label">Streak</div></div>
+  </div>
+  <div class="session-breakdown">
+    <div class="sb-title">Today's Session</div>
+    <div class="sb-row"><span class="sb-label">Review due</span><span class="sb-val review" id="sb-review">0</span></div>
+    <div class="sb-row"><span class="sb-label">New collocations</span><span class="sb-val new" id="sb-new">0</span></div>
+    <div class="sb-row"><span class="sb-label">Total</span><span class="sb-val total" id="sb-total">0</span></div>
+  </div>
+  <div class="overflow-notice" id="overflow-notice"></div>
+  <div class="highscore-row">
+    <span class="hs-label">High Score</span>
+    <span class="hs-val" id="home-highscore">—</span>
+  </div>
+
+  <!-- SRS状態パネル（デバッグ用） -->
+  <div class="srs-panel">
+    <div class="srs-panel-title">SRS Status (Debug)</div>
+    <div id="srs-status-list"></div>
+    <button class="btn-sim" onclick="simulateDays(1)">+ Simulate 1 day</button>
+    <button class="btn-sim" onclick="simulateDays(7)">+ Simulate 7 days</button>
+    <button class="btn-sim" onclick="resetSRS()">Reset SRS</button>
+  </div>
+
+  <button class="btn btn-primary" onclick="startSession()" id="start-btn">Start Learning →</button>
+</div>
+
+<!-- INPUT -->
+<div class="screen" id="screen-input">
+  <div style="display:flex;align-items:center;margin-bottom:6px;">
+    <span class="phase-label" style="margin-bottom:0">Input Phase</span>
+    <span class="phase-badge" id="input-type-badge"></span>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="input-progress"></div></div>
+  <div class="counter" id="input-counter"></div>
+  <div class="collocation-card">
+    <div class="collocation-main" id="col-main"></div>
+    <div class="collocation-type" id="col-type"></div>
+    <div class="example-label">Example</div>
+    <div class="example-text" id="col-example"></div>
+  </div>
+  <div class="explanation-card">
+    <div class="explanation-text" id="col-explanation"></div>
+    <div class="similar-row" id="col-similar"></div>
+  </div>
+  <div class="btn-trio-top">
+    <button class="btn-known" onclick="nextInput('known')">I already know this →</button>
+  </div>
+  <div class="btn-trio">
+    <button class="btn-got" onclick="nextInput('got')">Got it ✓</button>
+    <button class="btn-return" onclick="nextInput('return')">Return ↩</button>
+  </div>
+</div>
+
+<!-- OUTPUT -->
+<div class="screen" id="screen-output">
+  <div class="phase-label">Output Phase</div>
+  <div class="progress-bar"><div class="progress-fill" id="output-progress"></div></div>
+  <div class="counter" id="output-counter"></div>
+  <div class="score-pop" id="score-pop"></div>
+  <div class="timer-row"><div class="timer-circle" id="timer-display">6</div></div>
+  <div class="blank-sentence" id="blank-sentence"></div>
+  <div class="choices-grid" id="choices-grid"></div>
+  <div class="feedback-box" id="feedback-box"></div>
+  <button class="btn btn-primary" id="next-btn" onclick="nextOutput()" style="display:none">Next →</button>
+</div>
+
+<!-- ROLEPLAY -->
+<div class="screen" id="screen-roleplay">
+  <div class="phase-label">Roleplay Phase</div>
+  <div class="progress-bar"><div class="progress-fill" id="rp-progress"></div></div>
+  <div class="counter" id="rp-counter"></div>
+  <div class="rp-scene"><div class="rp-scene-label">Scene</div><div class="rp-scene-text" id="rp-scene"></div></div>
+  <div id="rp-conversation"></div>
+  <div class="rp-loading dot-anim" id="rp-loading">Thinking</div>
+  <div class="rp-input-area" id="rp-input-area">
+    <textarea class="rp-textarea" id="rp-answer" placeholder="Type your response here..." rows="3"></textarea>
+  </div>
+  <div class="rp-btn-row" id="rp-btn-row">
+    <button class="rp-submit" onclick="submitRoleplay()">Send →</button>
+    <button class="rp-skip" onclick="skipRoleplay()">Skip ↩</button>
+  </div>
+  <button class="btn btn-primary" id="rp-next-btn" onclick="nextRoleplay()" style="display:none">Next →</button>
+</div>
+
+<!-- RESULT -->
+<div class="screen" id="screen-result">
+  <div class="highscore-banner" id="highscore-banner"><div class="highscore-text">🏆 New High Score!</div></div>
+  <div class="result-score-main">
+    <div class="score-display" id="final-score-display">0.00</div>
+    <div class="score-label">Final Score</div>
+  </div>
+  <div class="bonus-card">
+    <div class="bonus-title">Score Breakdown</div>
+    <div class="bonus-row"><span class="bonus-label">Base score (avg)</span><span class="bonus-val" id="b-base">—</span></div>
+    <div class="bonus-row"><span class="bonus-label">Mastered bonus</span><span class="bonus-val" id="b-mastered">—</span></div>
+    <div class="bonus-row"><span class="bonus-label">Streak bonus</span><span class="bonus-val" id="b-streak">—</span></div>
+    <div class="bonus-row"><span class="bonus-label">Perfect bonus ×1.2</span><span class="bonus-val" id="b-perfect">—</span></div>
+    <div class="bonus-row"><span class="bonus-label">Total</span><span class="bonus-val" id="b-total">—</span></div>
+  </div>
+  <div class="result-list">
+    <div class="result-list-title">Question Results</div>
+    <div id="result-list-body"></div>
+  </div>
+  <button class="btn btn-primary" onclick="goHome()">Back to Home</button>
+</div>
+
+</div>
+<script>
+// ===== DATA =====
+const ALL_DATA=[
+  {id:"a1_001",collocation:"make a plan",type:"V + N",similar:["make a schedule","make an arrangement"],opposite:"cancel a plan",example1:"Let's make a plan for the weekend trip.",example2:"We need to _____ before the project starts.",answer:"make a plan",explanation:"Use 'make' here — not 'do' or 'have'.",frequency:0,cefr:1.0},
+  {id:"a1_002",collocation:"make a mistake",type:"V + N",similar:["make an error","get something wrong"],opposite:"get it right",example1:"Everyone makes a mistake sometimes — don't worry.",example2:"I think I _____ in my report.",answer:"make a mistake",explanation:"Always use 'make' — never 'do a mistake'.",frequency:0,cefr:1.0},
+  {id:"a1_004",collocation:"take a break",type:"V + N",similar:["have a rest","take a rest"],opposite:"keep working",example1:"You have been working for three hours — let's take a break.",example2:"The team decided to _____ after the long meeting.",answer:"take a break",explanation:"Use 'take' — not 'make a break'. Opposite: keep working.",frequency:0,cefr:1.0},
+  {id:"a1_010",collocation:"ask a question",type:"V + N",similar:["raise a question","pose a question"],opposite:"answer a question",example1:"Please feel free to ask a question at any time.",example2:"The new employee wanted to _____ about the schedule.",answer:"ask a question",explanation:"Always 'ask a question' — not 'make a question'.",frequency:0,cefr:1.0},
+  {id:"a1_021",collocation:"work hard",type:"V + Adv",similar:["try hard","put in effort"],opposite:"slack off",example1:"She always works hard to meet her targets.",example2:"You need to _____ if you want to finish on time.",answer:"work hard",explanation:"Note: 'work hard' not 'work hardly'.",frequency:0,cefr:1.0}
+];
+
+const RP_QUESTIONS={
+  "a1_001":{q:"Before we start the new project, what do you think we should do first?",scene:"You and your manager are discussing the next project steps."},
+  "a1_002":{q:"I noticed something seems off in the latest report. What happened?",scene:"Your manager calls you in to discuss the document you submitted."},
+  "a1_004":{q:"You've been at your desk for hours. How are you feeling?",scene:"Your manager stops by your desk after a long afternoon."},
+  "a1_010":{q:"We just finished the presentation. Is there anything you'd like to clarify?",scene:"You are in a team meeting after a presentation by a colleague."},
+  "a1_021":{q:"This week is going to be tough. What is your mindset going into it?",scene:"Your manager is checking in with the team before a demanding week."}
+};
+
+// ===== SRS =====
+const SRS_DAYS=[0,1,3,7,14,30];
+const MAX_SESSION=10;
+
+function todayInt(){
+  // デモ用：仮想日付をoffsetで管理
+  const d=new Date();
+  d.setDate(d.getDate()+dayOffset);
+  return parseInt(d.toISOString().slice(0,10).replace(/-/g,''));
+}
+
+function addDaysToInt(dateInt,days){
+  const s=String(dateInt);
+  const d=new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`);
+  d.setDate(d.getDate()+days);
+  return parseInt(d.toISOString().slice(0,10).replace(/-/g,''));
+}
+
+function loadSRS(){
+  try{return JSON.parse(localStorage.getItem('srs_v1')||'{}');}catch(e){return {};}
+}
+function saveSRS(m){localStorage.setItem('srs_v1',JSON.stringify(m));}
+
+function getSRS(id){
+  const m=loadSRS();
+  return m[id]||{level:0,lastStudied:0,nextReview:0};
+}
+
+function updateSRS(id,correct){
+  const m=loadSRS();
+  const s=m[id]||{level:0,lastStudied:0,nextReview:0};
+  const today=todayInt();
+  if(correct){
+    s.level=Math.min(5,s.level+1);
+  } else {
+    s.level=Math.max(0,s.level-1);
+  }
+  s.lastStudied=today;
+  s.nextReview=addDaysToInt(today,SRS_DAYS[s.level]||30);
+  m[id]=s;
+  saveSRS(m);
+}
+
+function selectSession(){
+  const today=todayInt();
+  const m=loadSRS();
+
+  // 復習対象（期限切れ含む）をlevel昇順で取得
+  const due=ALL_DATA
+    .filter(c=>{const s=m[c.id];return s&&s.nextReview>0&&s.nextReview<=today;})
+    .sort((a,b)=>(m[a.id]?.level||0)-(m[b.id]?.level||0));
+
+  // 上限10件、繰り越し分はnextReview+1日
+  const toReview=due.slice(0,MAX_SESSION);
+  const overflow=due.slice(MAX_SESSION);
+  overflow.forEach(c=>{
+    const s=m[c.id]||{};
+    s.nextReview=addDaysToInt(today,1);
+    m[c.id]=s;
+  });
+  if(overflow.length>0)saveSRS(m);
+
+  // 新規で残り枠補充
+  const remaining=MAX_SESSION-toReview.length;
+  const newItems=ALL_DATA
+    .filter(c=>!m[c.id]||m[c.id].level===0&&m[c.id].nextReview===0)
+    .sort((a,b)=>a.frequency-b.frequency)
+    .slice(0,remaining);
+
+  return {review:toReview,newItems,overflow:overflow.length};
+}
+
+// ===== 係数 =====
+function freqCoef(f){return[1.0,1.5,2.0,3.0][f]||1.0;}
+function levelCoef(l){if(l<=1)return 1.0;if(l<=3)return 2.0;if(l===4)return 3.0;return 5.0;}
+function cefrCoef(c){if(c<=1.0)return 1.0;if(c<=1.5)return 1.5;if(c<=2.0)return 2.0;return 3.0;}
+function calcScore(c,remainMs,level){
+  return remainMs*freqCoef(c.frequency)*levelCoef(level)*cefrCoef(c.cefr)/1000;
+}
+
+// ===== STATE =====
+let session=[],sessionMeta=[]; // sessionMeta: {isReview:bool}
+let inputIndex=0,outputIndex=0,rpIndex=0;
+let results=[],rpResults=[];
+let timerInterval=null,timeLeft=6,answered=false;
+let questionStartTime=0;
+let streak=1,masteredCount=0,highScore=0;
+let dayOffset=0; // シミュレーション用
+
+// ===== SRS DEBUG =====
+function renderSRSStatus(){
+  const m=loadSRS();
+  const today=todayInt();
+  const colors=['#ccc','#7ac4e8','#7ae8a0','#e8c97a','#e87a7a','#2d6a4f'];
+  const html=ALL_DATA.map(c=>{
+    const s=m[c.id]||{level:0,nextReview:0};
+    const isDue=s.nextReview>0&&s.nextReview<=today;
+    const dueText=s.nextReview===0?'New':isDue?'⚡ Due':'Day '+String(s.nextReview).slice(6);
+    return `<div class="srs-item">
+      <span class="srs-col">${c.collocation}</span>
+      <span class="srs-level" style="color:${colors[s.level]||'#ccc'}">Lv${s.level}</span>
+      <span class="srs-next">${dueText}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('srs-status-list').innerHTML=html;
+}
+
+function simulateDays(n){
+  dayOffset+=n;
+  updateHome();
+}
+
+function resetSRS(){
+  localStorage.removeItem('srs_v1');
+  dayOffset=0;
+  masteredCount=0;
+  streak=1;
+  highScore=0;
+  updateHome();
+}
+
+// ===== HOME =====
+function updateHome(){
+  const sel=selectSession();
+  session=[...sel.review,...sel.newItems];
+  sessionMeta=[
+    ...sel.review.map(()=>({isReview:true})),
+    ...sel.newItems.map(()=>({isReview:false}))
+  ];
+  document.getElementById('stat-total').textContent=session.length;
+  document.getElementById('stat-streak').textContent=streak;
+  document.getElementById('stat-mastered').textContent=masteredCount;
+  document.getElementById('home-highscore').textContent=highScore>0?highScore.toFixed(2)+'pt':'—';
+  document.getElementById('sb-review').textContent=sel.review.length;
+  document.getElementById('sb-new').textContent=sel.newItems.length;
+  document.getElementById('sb-total').textContent=session.length;
+  document.getElementById('preview-list') && (document.getElementById('preview-list').innerHTML='');
+
+  const notice=document.getElementById('overflow-notice');
+  if(sel.overflow>0){
+    notice.textContent=`⚠ ${sel.overflow} review(s) moved to tomorrow (daily limit reached)`;
+    notice.className='overflow-notice show';
+  } else {
+    notice.className='overflow-notice';
+  }
+
+  document.getElementById('start-btn').disabled=session.length===0;
+  document.getElementById('start-btn').textContent=session.length===0?'No items today ✓':'Start Learning →';
+
+  renderSRSStatus();
+}
+
+function startSession(){
+  if(session.length===0)return;
+  inputIndex=0;results=[];
+  showScreen('input');showInput();
+}
+
+// ===== INPUT =====
+function showInput(){
+  const c=session[inputIndex];
+  const meta=sessionMeta[inputIndex];
+  document.getElementById('input-progress').style.width=`${(inputIndex/session.length)*100}%`;
+  document.getElementById('input-counter').textContent=`${inputIndex+1} / ${session.length}`;
+  document.getElementById('col-main').textContent=c.collocation;
+  document.getElementById('col-type').textContent=c.type;
+  document.getElementById('col-example').innerHTML=c.example1.replace(c.collocation,`<mark>${c.collocation}</mark>`);
+  document.getElementById('col-explanation').textContent=c.explanation;
+  let tags=c.similar.map(s=>`<span class="similar-tag">${s}</span>`).join('');
+  if(c.opposite) tags+=`<span class="opposite-tag">↔ ${c.opposite}</span>`;
+  document.getElementById('col-similar').innerHTML=tags;
+  const badge=document.getElementById('input-type-badge');
+  if(meta&&meta.isReview){badge.textContent='Review';badge.className='phase-badge';}
+  else{badge.textContent='New';badge.className='phase-badge new-badge';}
+}
+
+function nextInput(action){
+  if(action==='return'){showInput();return;}
+  inputIndex++;
+  if(inputIndex>=session.length){outputIndex=0;showScreen('output');showOutput();}
+  else showInput();
+}
+
+// ===== OUTPUT =====
+function makeChoices(correct){
+  const pool=ALL_DATA.map(d=>d.answer).filter(a=>a!==correct);
+  return [...pool.sort(()=>Math.random()-0.5).slice(0,3),correct].sort(()=>Math.random()-0.5);
+}
+
+function showOutput(){
+  answered=false;
+  questionStartTime=Date.now();
+  const c=session[outputIndex];
+  const srs=getSRS(c.id);
+  document.getElementById('output-progress').style.width=`${(outputIndex/session.length)*100}%`;
+  document.getElementById('output-counter').textContent=`${outputIndex+1} / ${session.length}`;
+  document.getElementById('blank-sentence').innerHTML=c.example2.replace('_____',`<span class="blank">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>`);
+  document.getElementById('feedback-box').className='feedback-box';
+  document.getElementById('next-btn').style.display='none';
+  document.getElementById('score-pop').textContent='';
+  const choices=makeChoices(c.answer);
+  document.getElementById('choices-grid').innerHTML=choices.map(ch=>
+    `<button class="choice-btn" onclick="selectChoice(this,'${ch.replace(/'/g,"\\'")}')"><span>${ch}</span></button>`
+  ).join('');
+  startTimer();
+}
+
+function selectChoice(btn,chosen){
+  if(answered)return;
+  answered=true;
+  clearInterval(timerInterval);
+  const c=session[outputIndex];
+  const correct=c.answer;
+  const elapsed=Date.now()-questionStartTime;
+  const remainMs=Math.max(0,6000-elapsed);
+  const isCorrect=chosen===correct||c.similar.map(s=>s.toLowerCase()).includes(chosen.toLowerCase());
+
+  document.querySelectorAll('.choice-btn').forEach(b=>{
+    b.disabled=true;
+    const label=b.querySelector('span').textContent;
+    if(label===correct)b.classList.add('correct');
+    else if(label===chosen&&!isCorrect)b.classList.add('wrong');
+  });
+
+  const srs=getSRS(c.id);
+  const qScore=isCorrect?calcScore(c,remainMs,srs.level):0;
+
+  // SRS更新
+  updateSRS(c.id,isCorrect);
+  const newSRS=getSRS(c.id);
+
+  const fb=document.getElementById('feedback-box');
+  if(isCorrect){
+    fb.className='feedback-box correct';
+    fb.textContent=`✓ Correct! +${qScore.toFixed(2)}pt  Lv${srs.level}→Lv${newSRS.level}`;
+    document.getElementById('score-pop').textContent=`+${qScore.toFixed(2)}pt`;
+  } else {
+    fb.className='feedback-box wrong';
+    fb.textContent=`✗ "${correct}"  Lv${srs.level}→Lv${newSRS.level}  Next: Day${String(newSRS.nextReview).slice(6)}`;
+    document.getElementById('score-pop').textContent='+0pt';
+  }
+  results.push({collocation:c.collocation,correct:isCorrect,score:qScore,remainMs,srs});
+  document.getElementById('next-btn').style.display='block';
+}
+
+function startTimer(){
+  clearInterval(timerInterval);timeLeft=6;updateTimer();
+  timerInterval=setInterval(()=>{
+    timeLeft-=0.1;
+    if(timeLeft<=0){timeLeft=0;clearInterval(timerInterval);if(!answered)timeUp();}
+    updateTimer();
+  },100);
+}
+function updateTimer(){
+  const d=document.getElementById('timer-display');
+  d.textContent=Math.ceil(timeLeft);
+  d.className=timeLeft<=2?'timer-circle warning':'timer-circle';
+}
+function timeUp(){
+  answered=true;
+  const c=session[outputIndex];
+  document.querySelectorAll('.choice-btn').forEach(b=>{b.disabled=true;if(b.querySelector('span').textContent===c.answer)b.classList.add('correct');});
+  updateSRS(c.id,false);
+  const newSRS=getSRS(c.id);
+  document.getElementById('feedback-box').className='feedback-box wrong';
+  document.getElementById('feedback-box').textContent=`⏱ Time's up! "${c.answer}"  Next: Day${String(newSRS.nextReview).slice(6)}`;
+  document.getElementById('score-pop').textContent='+0pt';
+  results.push({collocation:c.collocation,correct:false,score:0,remainMs:0,srs:getSRS(c.id)});
+  document.getElementById('next-btn').style.display='block';
+}
+function nextOutput(){
+  outputIndex++;
+  if(outputIndex>=session.length){rpIndex=0;rpResults=[];showScreen('roleplay');showRoleplay();}
+  else showOutput();
+}
+
+// ===== ROLEPLAY =====
+function showRoleplay(){
+  const c=session[rpIndex];
+  const rp=RP_QUESTIONS[c.id];
+  document.getElementById('rp-progress').style.width=`${(rpIndex/session.length)*100}%`;
+  document.getElementById('rp-counter').textContent=`${rpIndex+1} / ${session.length}`;
+  document.getElementById('rp-scene').textContent=rp.scene;
+  const conv=document.getElementById('rp-conversation');
+  conv.innerHTML=`<div class="rp-bubble-wrap"><div class="rp-speaker">Manager</div><div class="rp-bubble manager">"${rp.q}"</div></div>`;
+  document.getElementById('rp-answer').value='';
+  document.getElementById('rp-input-area').style.display='block';
+  document.getElementById('rp-btn-row').style.display='grid';
+  document.getElementById('rp-next-btn').style.display='none';
+  document.getElementById('rp-loading').className='rp-loading';
+}
+
+async function submitRoleplay(){
+  const userAnswer=document.getElementById('rp-answer').value.trim();
+  if(!userAnswer)return;
+  const c=session[rpIndex];
+  document.getElementById('rp-input-area').style.display='none';
+  document.getElementById('rp-btn-row').style.display='none';
+  const conv=document.getElementById('rp-conversation');
+  conv.insertAdjacentHTML('beforeend',`<div class="rp-bubble-wrap"><div class="rp-speaker">You</div><div class="rp-bubble user">"${userAnswer}"</div></div>`);
+  document.getElementById('rp-loading').className='rp-loading show';
+  try{
+    const prompt=`You are a manager in a brief business conversation. The collocation being practiced is: "${c.collocation}". The user said: "${userAnswer}". In ONE reply (max 2 sentences): 1. Naturally correct any unnatural English if needed. 2. Close the conversation clearly.`;
+    const response=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:150,messages:[{role:"user",content:prompt}]})});
+    const data=await response.json();
+    const reply=data.content?.[0]?.text||"Good effort!";
+    document.getElementById('rp-loading').className='rp-loading';
+    conv.insertAdjacentHTML('beforeend',`<div class="rp-bubble-wrap"><div class="rp-speaker">Manager</div><div class="rp-bubble reply">"${reply}"</div></div>`);
+    rpResults.push({collocation:c.collocation,used:true});
+  }catch(e){
+    document.getElementById('rp-loading').className='rp-loading';
+    conv.insertAdjacentHTML('beforeend',`<div class="rp-bubble-wrap"><div class="rp-speaker">Manager</div><div class="rp-bubble reply">"Good response! Keep practicing naturally."</div></div>`);
+    rpResults.push({collocation:c.collocation,used:true});
+  }
+  document.getElementById('rp-next-btn').style.display='block';
+}
+
+function skipRoleplay(){
+  rpResults.push({collocation:session[rpIndex].collocation,used:false});
+  nextRoleplay();
+}
+function nextRoleplay(){
+  rpIndex++;
+  if(rpIndex>=session.length)showResults();
+  else showRoleplay();
+}
+
+// ===== RESULTS =====
+function showResults(){
+  const correctResults=results.filter(r=>r.correct);
+  const baseAvg=results.length>0?(results.reduce((s,r)=>s+r.score,0)/results.length):0;
+  masteredCount+=correctResults.length;
+  const masteredBonus=masteredCount*0.1;
+  const streakBonus=streak*0.05;
+  const isPerfect=results.every(r=>r.correct);
+  const subtotal=baseAvg+masteredBonus+streakBonus;
+  const total=isPerfect?subtotal*1.2:subtotal;
+  const isNew=total>highScore;
+  if(isNew)highScore=total;
+
+  document.getElementById('highscore-banner').className=isNew?'highscore-banner show':'highscore-banner';
+  document.getElementById('final-score-display').textContent=total.toFixed(2);
+  document.getElementById('b-base').textContent=baseAvg.toFixed(2)+'pt';
+  document.getElementById('b-mastered').textContent='+'+masteredBonus.toFixed(2)+'pt';
+  document.getElementById('b-streak').textContent='+'+streakBonus.toFixed(2)+'pt';
+  document.getElementById('b-perfect').textContent=isPerfect?'Applied':'—';
+  document.getElementById('b-total').textContent=total.toFixed(2)+'pt';
+
+  document.getElementById('result-list-body').innerHTML=results.map(r=>`
+    <div class="result-item">
+      <div class="result-left">
+        <div class="result-collocation">${r.collocation}</div>
+        <div class="result-phase">Output · ${r.remainMs>0?(r.remainMs/1000).toFixed(1)+'s left':'-'}</div>
+      </div>
+      <span class="result-score">${r.correct?'+'+r.score.toFixed(2)+'pt':'+0pt'}</span>
+      <span class="${r.correct?'result-ok':'result-ng'}">${r.correct?'✓':'✗'}</span>
+    </div>`).join('');
+
+  showScreen('result');
+}
+
+function goHome(){showScreen('home');updateHome();}
+function showScreen(name){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(`screen-${name}`).classList.add('active');}
+
+updateHome();
+</script>
+</body>
+</html>
