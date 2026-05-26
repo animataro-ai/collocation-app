@@ -618,7 +618,7 @@ async function submitRoleplay(){
   document.getElementById('rp-loading').className='rp-loading show';
   try{
     const prompt=`You are a manager. Collocation practiced: "${c.collocation}". User said: "${userAnswer}". ONE reply (max 2 sentences): correct if needed, close conversation.`;
-    const response=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:150,messages:[{role:"user",content:prompt}]})});
+    const response=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:150,messages:[{role:"user",content:prompt}]})});
     const data=await response.json();const reply=data.content?.[0]?.text||"Good effort!";
     document.getElementById('rp-loading').className='rp-loading';
     conv.insertAdjacentHTML('beforeend',`<div class="rp-bubble-wrap"><div class="rp-speaker">Manager</div><div class="rp-bubble reply">"${reply}"</div></div>`);
