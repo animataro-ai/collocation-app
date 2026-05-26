@@ -15,6 +15,20 @@
   body { background: var(--bg); color: var(--text); font-family: 'Nunito', sans-serif; min-height: 100vh; min-height: 100dvh; display: block; margin: 0; padding: 0; }
   #app { width: 100%; max-width: 100%; padding: 16px; padding-top: max(16px, env(safe-area-inset-top)); padding-bottom: max(40px, env(safe-area-inset-bottom)); padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); box-sizing: border-box; }
   @media (min-width: 600px) { #app { max-width: 520px; margin: 0 auto; padding: 24px 20px; } }
+
+  /* ローディング */
+  #loading-screen { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
+  .loading-logo { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 40px; color: var(--accent); letter-spacing: -2px; margin-bottom: 16px; }
+  .loading-bar { width: 120px; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .loading-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; animation: loading 1.5s ease-in-out infinite; }
+  @keyframes loading { 0%{width:0%} 50%{width:80%} 100%{width:100%} }
+  .loading-status { font-family: 'Outfit', sans-serif; font-size: 12px; color: var(--text2); margin-top: 10px; letter-spacing: 1px; }
+
+  /* 同期インジケーター */
+  .sync-indicator { position: fixed; top: max(8px, env(safe-area-inset-top)); right: 12px; font-family: 'Outfit', sans-serif; font-size: 11px; color: var(--text2); display: none; z-index: 50; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 3px 10px; }
+  .sync-indicator.syncing { display: block; color: var(--warning); }
+  .sync-indicator.synced { display: block; color: var(--success); }
+
   .screen { display: none; } .screen.active { display: block; }
   .home-header { text-align: center; margin-bottom: 24px; }
   .home-logo { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 40px; color: var(--accent); letter-spacing: -2px; line-height: 1; }
@@ -72,6 +86,7 @@
   .btn-sim.danger { border-color: var(--danger); color: var(--danger); }
   .debug-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 5px; }
   .debug-toast { background: var(--accent); color: #fff; border-radius: var(--radius); padding: 7px 12px; font-family: 'Outfit', sans-serif; font-size: 12px; font-weight: 700; text-align: center; margin-bottom: 6px; display: none; }
+  .uid-display { font-family: 'Space Mono', monospace; font-size: 9px; color: var(--text2); word-break: break-all; margin-top: 4px; }
   .progress-bar { height: 4px; background: var(--border); border-radius: 3px; margin-bottom: 14px; overflow: hidden; }
   .progress-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.4s ease; }
   .phase-label { font-family: 'Outfit', sans-serif; font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 3px; margin-bottom: 4px; font-weight: 700; }
@@ -161,8 +176,18 @@
 </style>
 </head>
 <body>
-<div id="app">
 
+<!-- ローディング画面 -->
+<div id="loading-screen">
+  <div class="loading-logo">Collocation</div>
+  <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+  <div class="loading-status" id="loading-status">Connecting...</div>
+</div>
+
+<!-- 同期インジケーター -->
+<div class="sync-indicator" id="sync-indicator"></div>
+
+<div id="app">
 <div class="screen active" id="screen-home">
   <div class="home-header"><div class="home-logo">Collocation</div><div class="home-sub">A1 Learning System</div></div>
   <div class="stats-grid">
@@ -191,6 +216,8 @@
     <div class="srs-panel-title" onclick="toggleDebug()">🛠 Debug Panel <span id="debug-toggle">▼</span></div>
     <div class="srs-panel-body" id="srs-panel-body">
       <div class="debug-toast" id="debug-toast"></div>
+      <div class="uid-display" id="uid-display"></div>
+      <div class="debug-divider"></div>
       <div class="debug-section-title">SRS Status — Force Update</div>
       <div id="srs-status-list"></div>
       <div class="debug-divider"></div>
@@ -273,9 +300,15 @@
   <div class="result-list"><div class="result-list-title">Question Results</div><div id="result-list-body"></div></div>
   <button class="btn btn-primary" onclick="goHome()">Back to Home</button>
 </div>
-
 </div>
-<script>
+
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getDatabase, ref, get, set, update } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+
+// ===== DATA =====
 const ALL_DATA=[
   {id:"a1_001",collocation:"make a plan",type:"V + N",similar:["make a schedule","make an arrangement"],opposite:"cancel a plan",example1:"Let's make a plan for the weekend trip.",example2:"We need to _____ before the project starts.",answer:"make a plan",explanation:"Use 'make' here — not 'do' or 'have'. Common in daily and work contexts.",scene:0,frequency:0,cefr:1.0},
   {id:"a1_002",collocation:"make a mistake",type:"V + N",similar:["make an error","get something wrong"],opposite:"get it right",example1:"Everyone makes a mistake sometimes — don't worry.",example2:"I think I _____ in my report.",answer:"make a mistake",explanation:"Always use 'make' — never 'do a mistake'. Similar: make an error.",scene:0,frequency:0,cefr:1.0},
@@ -285,9 +318,9 @@ const ALL_DATA=[
   {id:"a1_006",collocation:"take notes",type:"V + N",similar:["write things down","jot things down"],opposite:"ignore",example1:"Please take notes during the presentation.",example2:"She always _____ carefully in every meeting.",answer:"take notes",explanation:"Use 'take notes' — most natural in study and work settings.",scene:0,frequency:0,cefr:1.0},
   {id:"a1_007",collocation:"have a meeting",type:"V + N",similar:["hold a meeting","attend a meeting"],opposite:"cancel a meeting",example1:"We are going to have a meeting at 10 a.m. tomorrow.",example2:"Can we _____ to discuss the project update?",answer:"have a meeting",explanation:"Similar: hold a meeting (more formal). Opposite: cancel a meeting.",scene:1,frequency:0,cefr:1.0},
   {id:"a1_008",collocation:"have lunch",type:"V + N",similar:["eat lunch","grab lunch"],opposite:"skip lunch",example1:"Do you want to have lunch together today?",example2:"I usually _____ at my desk when I am busy.",answer:"have lunch",explanation:"'Have' is the most natural verb here. Similar: eat lunch, grab lunch (informal).",scene:0,frequency:0,cefr:1.0},
-  {id:"a1_009",collocation:"have a problem",type:"V + N",similar:["face a problem","run into a problem"],opposite:"solve a problem",example1:"I have a problem with my computer — it won't start.",example2:"Please let me know if you _____ with the system.",answer:"have a problem",explanation:"Similar: face a problem. Opposite: solve a problem. Note the pair: have — solve.",scene:0,frequency:0,cefr:1.0},
+  {id:"a1_009",collocation:"have a problem",type:"V + N",similar:["face a problem","run into a problem"],opposite:"solve a problem",example1:"I have a problem with my computer — it won't start.",example2:"Please let me know if you _____ with the system.",answer:"have a problem",explanation:"Similar: face a problem. Opposite: solve a problem.",scene:0,frequency:0,cefr:1.0},
   {id:"a1_010",collocation:"ask a question",type:"V + N",similar:["raise a question","pose a question"],opposite:"answer a question",example1:"Please feel free to ask a question at any time.",example2:"The new employee wanted to _____ about the schedule.",answer:"ask a question",explanation:"Always 'ask a question' — not 'make a question'. Opposite: answer a question.",scene:0,frequency:0,cefr:1.0},
-  {id:"a1_011",collocation:"answer a question",type:"V + N",similar:["respond to a question","reply to a question"],opposite:"ask a question",example1:"She was able to answer every question in the interview.",example2:"Could you _____ about the delivery schedule?",answer:"answer a question",explanation:"Direct opposite: ask a question. Similar: respond to a question (slightly more formal).",scene:0,frequency:0,cefr:1.0},
+  {id:"a1_011",collocation:"answer a question",type:"V + N",similar:["respond to a question","reply to a question"],opposite:"ask a question",example1:"She was able to answer every question in the interview.",example2:"Could you _____ about the delivery schedule?",answer:"answer a question",explanation:"Direct opposite: ask a question. Similar: respond to a question.",scene:0,frequency:0,cefr:1.0},
   {id:"a1_012",collocation:"send a message",type:"V + N",similar:["send an email","drop someone a message"],opposite:"receive a message",example1:"I will send a message to the client after the call.",example2:"Please _____ to confirm the meeting time.",answer:"send a message",explanation:"Similar: send an email. Opposite: receive a message.",scene:0,frequency:0,cefr:1.0},
   {id:"a1_013",collocation:"good idea",type:"Adj + N",similar:["great idea","useful idea"],opposite:"bad idea",example1:"That's a good idea — let's try it.",example2:"Starting the meeting earlier sounds like a _____.",answer:"good idea",explanation:"Often used to agree with someone's suggestion. Opposite: bad idea.",scene:0,frequency:0,cefr:1.0},
   {id:"a1_014",collocation:"bad idea",type:"Adj + N",similar:["poor idea","terrible idea"],opposite:"good idea",example1:"Sending that email now might be a bad idea.",example2:"I think changing the schedule at the last minute is a _____.",answer:"bad idea",explanation:"Opposite: good idea. Often softened with 'might be' in polite conversation.",scene:0,frequency:0,cefr:1.0},
@@ -306,7 +339,7 @@ const ALL_DATA=[
   {id:"a1_027",collocation:"team member",type:"N + N",similar:["colleague","staff member"],opposite:"team leader",example1:"Every team member is responsible for their own tasks.",example2:"We need each _____ to submit their report by Friday.",answer:"team member",explanation:"Similar: colleague. Contrast with: team leader (the person in charge).",scene:1,frequency:0,cefr:1.0},
   {id:"a1_028",collocation:"team leader",type:"N + N",similar:["group leader","supervisor"],opposite:"team member",example1:"The team leader will explain the goals at the start of the meeting.",example2:"Please send your questions directly to the _____.",answer:"team leader",explanation:"Similar: supervisor, group leader. Opposite: team member.",scene:1,frequency:0,cefr:1.0},
   {id:"a1_029",collocation:"office work",type:"N + N",similar:["desk work","administrative work"],opposite:"fieldwork",example1:"Most of my office work involves writing reports and emails.",example2:"I prefer _____ to working outside.",answer:"office work",explanation:"Describes work done in an office. Opposite: fieldwork. Similar: desk work.",scene:1,frequency:1,cefr:1.0},
-  {id:"a1_030",collocation:"phone call",type:"N + N",similar:["call","video call"],opposite:"",example1:"I missed an important phone call while I was in the meeting.",example2:"Can we schedule a _____ for tomorrow morning?",answer:"phone call",explanation:"Similar: video call (with visuals), call (shorter form). Common in daily and business settings.",scene:0,frequency:0,cefr:1.0}
+  {id:"a1_030",collocation:"phone call",type:"N + N",similar:["call","video call"],opposite:"",example1:"I missed an important phone call while I was in the meeting.",example2:"Can we schedule a _____ for tomorrow morning?",answer:"phone call",explanation:"Similar: video call (with visuals), call (shorter form).",scene:0,frequency:0,cefr:1.0}
 ];
 
 const RP_QUESTIONS={
@@ -319,7 +352,7 @@ const RP_QUESTIONS={
   "a1_007":{q:"We need to talk about the project schedule. When can we get together?",scene:"Your manager wants to discuss the project timeline."},
   "a1_008":{q:"It's noon already. What are your plans?",scene:"A colleague checks in with you at midday."},
   "a1_009":{q:"You look worried. Is something going on with the project?",scene:"Your manager notices you seem stressed."},
-  "a1_010":{q:"We just finished the presentation. Is there anything you'd like to clarify?",scene:"You are in a team meeting after a presentation."},
+  "a1_010":{q:"We just finished the presentation. Anything you'd like to clarify?",scene:"You are in a team meeting after a presentation."},
   "a1_011":{q:"A client wrote in with a question about our delivery. Can you handle it?",scene:"Your manager asks you to respond to a client inquiry."},
   "a1_012":{q:"How are you planning to follow up with the client after our call?",scene:"You are wrapping up a call with a client."},
   "a1_013":{q:"We need to find a way to speed up the process. Any thoughts?",scene:"Your team is brainstorming solutions to a workflow problem."},
@@ -332,7 +365,7 @@ const RP_QUESTIONS={
   "a1_020":{q:"I called earlier but you didn't pick up. Everything okay?",scene:"A colleague checks in after a missed call."},
   "a1_021":{q:"This week is going to be tough. What's your mindset?",scene:"Your manager is checking in before a demanding week."},
   "a1_022":{q:"Your presentation was good but some people looked confused. Any thoughts?",scene:"Your manager gives feedback after your team presentation."},
-  "a1_023":{q:"We have an international colleague joining today who is still learning English. Any advice?",scene:"Your team is preparing to welcome a new international member."},
+  "a1_023":{q:"We have an international colleague joining today. Any advice?",scene:"Your team is preparing to welcome a new international member."},
   "a1_024":{q:"Tomorrow is your first day on the new project. Any plans?",scene:"Your manager asks about your preparation for tomorrow."},
   "a1_025":{q:"I noticed people checking their phones a lot today. Is that a concern?",scene:"Your manager raises an issue about focus during working hours."},
   "a1_026":{q:"When would be a good time to talk about something non-urgent?",scene:"A colleague wants to chat about something casually."},
@@ -342,242 +375,378 @@ const RP_QUESTIONS={
   "a1_030":{q:"How do you prefer to communicate with clients?",scene:"Your manager asks about your client communication style."}
 };
 
-let currentCollocation='',currentExample='',voices=[];
-function loadVoices(){voices=speechSynthesis.getVoices();}
-loadVoices();if(speechSynthesis.onvoiceschanged!==undefined)speechSynthesis.onvoiceschanged=loadVoices;
-function getEnglishVoice(){return voices.find(v=>v.lang==='en-US'&&v.localService)||voices.find(v=>v.lang==='en-US')||voices.find(v=>v.lang.startsWith('en'))||null;}
-function speak(text,rate=0.85,onEnd=null){speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang='en-US';u.rate=rate;u.pitch=1.0;const v=getEnglishVoice();if(v)u.voice=v;if(onEnd)u.onend=onEnd;speechSynthesis.speak(u);}
-function speakCollocation(){const b=document.getElementById('btn-audio-col');b.classList.add('playing');speak(currentCollocation,0.8,()=>b.classList.remove('playing'));}
-function speakExample(){const b=document.getElementById('btn-audio-ex');b.classList.add('playing');speak(currentExample,0.85,()=>b.classList.remove('playing'));}
-function speakFeedback(t){setTimeout(()=>speak(t,0.85),300);}
+// ===== FIREBASE =====
+let db, auth, uid;
+let srsCache = {};
+let statsCache = {};
 
-let dayOffset=0;
-function todayInt(){const d=new Date();d.setDate(d.getDate()+dayOffset);return parseInt(d.toISOString().slice(0,10).replace(/-/g,''));}
-function addDaysToInt(di,n){const s=String(di);const d=new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`);d.setDate(d.getDate()+n);return parseInt(d.toISOString().slice(0,10).replace(/-/g,''));}
-function diffDays(a,b){const toDate=n=>{const s=String(n);return new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`);};return Math.round((toDate(b)-toDate(a))/(1000*60*60*24));}
-function loadStats(){try{return JSON.parse(localStorage.getItem('stats_v1')||'{}');}catch(e){return{};}}
-function saveStats(s){localStorage.setItem('stats_v1',JSON.stringify(s));}
-function getStreak(){const stats=loadStats();const today=todayInt();const lastStudied=stats.lastStudied||0;if(lastStudied===0)return 0;if(diffDays(lastStudied,today)>1)return 0;return stats.streak||0;}
-function recordStudySession(){const stats=loadStats();const today=todayInt();if(stats.studiedToday===today)return;const lastStudied=stats.lastStudied||0;let newStreak=1;if(lastStudied>0&&diffDays(lastStudied,today)===1)newStreak=(stats.streak||0)+1;stats.streak=newStreak;stats.lastStudied=today;stats.studiedToday=today;saveStats(stats);}
-function renderStreakDots(){
-  const stats=loadStats();const today=todayInt();const streak=getStreak();const lastStudied=stats.lastStudied||0;
-  const dots=[];for(let i=6;i>=0;i--){const d=addDaysToInt(today,-i);let type='future';if(d===today){type=stats.studiedToday===today?'done':'today';}else if(d<today){if(lastStudied>0&&d>=addDaysToInt(lastStudied,-(streak-1))&&d<=lastStudied)type='done';else type='missed';}const dayLabel=['Su','Mo','Tu','We','Th','Fr','Sa'][new Date(String(d).replace(/(\d{4})(\d{2})(\d{2})/,'$1-$2-$3')).getDay()];dots.push({d,type,label:dayLabel});}
-  document.getElementById('streak-dots').innerHTML=dots.map(dot=>`<div class="streak-dot ${dot.type}">${dot.label}</div>`).join('');
-  const statusEl=document.getElementById('streak-status');const isTodayDone=stats.studiedToday===today;
-  if(streak===0&&!isTodayDone){statusEl.className='streak-status broken';statusEl.textContent='Start your streak today!';}
-  else if(isTodayDone){statusEl.className='streak-status active';statusEl.textContent=`🔥 ${streak} day streak!`;}
-  else if(lastStudied>0&&diffDays(lastStudied,today)===1){statusEl.className='streak-status warning';statusEl.textContent=`⚠ Keep your ${streak}-day streak!`;}
-  else{statusEl.className='streak-status broken';statusEl.textContent='Streak broken — start again!';}
-  document.getElementById('streak-count').textContent=`${streak} day${streak!==1?'s':''}`;
+async function initFirebase() {
+  try {
+    document.getElementById('loading-status').textContent = 'Loading config...';
+    const res = await fetch('/api/config');
+    const config = await res.json();
+    const app = initializeApp(config);
+    db = getDatabase(app);
+    auth = getAuth(app);
+    document.getElementById('loading-status').textContent = 'Authenticating...';
+    await new Promise((resolve, reject) => {
+      onAuthStateChanged(auth, async (user) => {
+        if (user) {
+          uid = user.uid;
+          resolve();
+        } else {
+          try {
+            const cred = await signInAnonymously(auth);
+            uid = cred.user.uid;
+            resolve();
+          } catch (e) { reject(e); }
+        }
+      });
+    });
+    document.getElementById('loading-status').textContent = 'Loading data...';
+    await loadFromFirebase();
+    document.getElementById('uid-display').textContent = `UID: ${uid}`;
+    document.getElementById('loading-screen').style.display = 'none';
+    updateHome();
+  } catch (e) {
+    console.error('Firebase init error:', e);
+    // オフラインフォールバック
+    document.getElementById('loading-status').textContent = 'Offline mode';
+    loadFromLocalStorage();
+    document.getElementById('loading-screen').style.display = 'none';
+    updateHome();
+  }
 }
 
-const SRS_DAYS=[0,1,3,7,14,30];const MAX_SESSION=10;
-function loadSRS(){try{return JSON.parse(localStorage.getItem('srs_v1')||'{}');}catch(e){return{};}}
-function saveSRS(m){localStorage.setItem('srs_v1',JSON.stringify(m));}
-function getSRS(id){const m=loadSRS();return m[id]||{level:0,lastStudied:0,nextReview:0};}
-function updateSRS(id,correct){const m=loadSRS();const s=m[id]||{level:0,lastStudied:0,nextReview:0};const today=todayInt();s.level=correct?Math.min(5,s.level+1):Math.max(0,s.level-1);s.lastStudied=today;s.nextReview=addDaysToInt(today,SRS_DAYS[s.level]||30);m[id]=s;saveSRS(m);}
-function selectSession(){
-  const today=todayInt();const m=loadSRS();
-  const due=ALL_DATA.filter(c=>{const s=m[c.id];return s&&s.nextReview>0&&s.nextReview<=today;}).sort((a,b)=>(m[a.id]?.level||0)-(m[b.id]?.level||0));
-  const toReview=due.slice(0,MAX_SESSION);const overflow=due.slice(MAX_SESSION);
-  overflow.forEach(c=>{const s=m[c.id]||{};s.nextReview=addDaysToInt(today,1);m[c.id]=s;});
-  if(overflow.length>0)saveSRS(m);
-  const remaining=MAX_SESSION-toReview.length;
-  const newItems=ALL_DATA.filter(c=>!m[c.id]||m[c.id].level===0&&m[c.id].nextReview===0).sort((a,b)=>a.frequency-b.frequency).slice(0,remaining);
-  return{review:toReview,newItems,overflow:overflow.length};
+async function loadFromFirebase() {
+  try {
+    const srsSnap = await get(ref(db, `users/${uid}/srs`));
+    srsCache = srsSnap.exists() ? srsSnap.val() : {};
+    const statsSnap = await get(ref(db, `users/${uid}/stats`));
+    statsCache = statsSnap.exists() ? statsSnap.val() : {};
+    // localStorageにも同期
+    localStorage.setItem('srs_v1', JSON.stringify(srsCache));
+    localStorage.setItem('stats_v1', JSON.stringify(statsCache));
+  } catch (e) {
+    console.error('Firebase load error:', e);
+    loadFromLocalStorage();
+  }
 }
 
-function freqCoef(f){return[1.0,1.5,2.0,3.0][f]||1.0;}
-function levelCoef(l){if(l<=1)return 1.0;if(l<=3)return 2.0;if(l===4)return 3.0;return 5.0;}
-function cefrCoef(c){if(c<=1.0)return 1.0;if(c<=1.5)return 1.5;if(c<=2.0)return 2.0;return 3.0;}
-function calcScore(c,remainMs,level){return remainMs*freqCoef(c.frequency)*levelCoef(level)*cefrCoef(c.cefr)/1000;}
+function loadFromLocalStorage() {
+  try { srsCache = JSON.parse(localStorage.getItem('srs_v1') || '{}'); } catch(e) { srsCache = {}; }
+  try { statsCache = JSON.parse(localStorage.getItem('stats_v1') || '{}'); } catch(e) { statsCache = {}; }
+}
 
-function showToast(msg){const t=document.getElementById('debug-toast');t.textContent=msg;t.style.display='block';setTimeout(()=>{t.style.display='none';},2000);}
-function toggleDebug(){const b=document.getElementById('srs-panel-body');const t=document.getElementById('debug-toggle');b.classList.toggle('open');t.textContent=b.classList.contains('open')?'▲':'▼';}
-function forceCorrect(id){updateSRS(id,true);const srs=getSRS(id);showToast(`✓ Lv→${srs.level} Next:D${String(srs.nextReview).slice(6)}`);updateHome();}
-function forceIncorrect(id){updateSRS(id,false);const srs=getSRS(id);showToast(`✗ Lv→${srs.level} Next:D${String(srs.nextReview).slice(6)}`);updateHome();}
-function renderSRSStatus(){
-  const m=loadSRS();const today=todayInt();const colors=['#aaa','#7ac4e8','#7ae8a0','#e8c97a','#e87a7a','#2d6a4f'];
-  document.getElementById('srs-status-list').innerHTML=ALL_DATA.map(c=>{
-    const s=m[c.id]||{level:0,nextReview:0};const isDue=s.nextReview>0&&s.nextReview<=today;
-    const dueText=s.nextReview===0?'New':isDue?'⚡Due':'D'+String(s.nextReview).slice(6);
-    return`<div class="srs-item"><span class="srs-col">${c.collocation}</span><span class="srs-level" style="color:${colors[s.level]}">Lv${s.level}</span><span class="srs-next">${dueText}</span><div class="srs-btn-group"><button class="btn-force-correct" onclick="forceCorrect('${c.id}')">✓</button><button class="btn-force-incorrect" onclick="forceIncorrect('${c.id}')">✗</button></div></div>`;
+function showSync(status) {
+  const el = document.getElementById('sync-indicator');
+  if (status === 'syncing') { el.className = 'sync-indicator syncing'; el.textContent = '↑ Syncing...'; }
+  else if (status === 'synced') { el.className = 'sync-indicator synced'; el.textContent = '✓ Synced'; setTimeout(() => { el.className = 'sync-indicator'; }, 2000); }
+}
+
+async function saveToFirebase(path, data) {
+  if (!db || !uid) { localStorage.setItem(path === 'srs' ? 'srs_v1' : 'stats_v1', JSON.stringify(data)); return; }
+  showSync('syncing');
+  try {
+    await set(ref(db, `users/${uid}/${path}`), data);
+    showSync('synced');
+  } catch (e) {
+    console.error('Firebase save error:', e);
+    showSync('synced');
+  }
+}
+
+// ===== SRS =====
+const SRS_DAYS = [0, 1, 3, 7, 14, 30];
+const MAX_SESSION = 10;
+let dayOffset = 0;
+
+function todayInt() { const d = new Date(); d.setDate(d.getDate() + dayOffset); return parseInt(d.toISOString().slice(0,10).replace(/-/g,'')); }
+function addDaysToInt(di, n) { const s = String(di); const d = new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`); d.setDate(d.getDate() + n); return parseInt(d.toISOString().slice(0,10).replace(/-/g,'')); }
+function diffDays(a, b) { const toDate = n => { const s = String(n); return new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`); }; return Math.round((toDate(b) - toDate(a)) / (1000*60*60*24)); }
+
+function getSRS(id) { return srsCache[id] || { level: 0, lastStudied: 0, nextReview: 0 }; }
+
+function updateSRSLocal(id, correct) {
+  const s = getSRS(id);
+  const today = todayInt();
+  s.level = correct ? Math.min(5, s.level + 1) : Math.max(0, s.level - 1);
+  s.lastStudied = today;
+  s.nextReview = addDaysToInt(today, SRS_DAYS[s.level] || 30);
+  srsCache[id] = s;
+  localStorage.setItem('srs_v1', JSON.stringify(srsCache));
+}
+
+async function updateSRS(id, correct) {
+  updateSRSLocal(id, correct);
+  await saveToFirebase('srs', srsCache);
+}
+
+function getStats() { return statsCache; }
+
+function updateStatsLocal(updates) {
+  statsCache = { ...statsCache, ...updates };
+  localStorage.setItem('stats_v1', JSON.stringify(statsCache));
+}
+
+async function saveStats() {
+  await saveToFirebase('stats', statsCache);
+}
+
+function getStreak() {
+  const stats = getStats();
+  const today = todayInt();
+  const lastStudied = stats.lastStudied || 0;
+  if (lastStudied === 0) return 0;
+  if (diffDays(lastStudied, today) > 1) return 0;
+  return stats.streak || 0;
+}
+
+function recordStudySession() {
+  const stats = getStats();
+  const today = todayInt();
+  if (stats.studiedToday === today) return;
+  const lastStudied = stats.lastStudied || 0;
+  let newStreak = 1;
+  if (lastStudied > 0 && diffDays(lastStudied, today) === 1) newStreak = (stats.streak || 0) + 1;
+  updateStatsLocal({ streak: newStreak, lastStudied: today, studiedToday: today });
+}
+
+function selectSession() {
+  const today = todayInt();
+  const due = ALL_DATA.filter(c => { const s = srsCache[c.id]; return s && s.nextReview > 0 && s.nextReview <= today; }).sort((a, b) => (srsCache[a.id]?.level || 0) - (srsCache[b.id]?.level || 0));
+  const toReview = due.slice(0, MAX_SESSION);
+  const overflow = due.slice(MAX_SESSION);
+  overflow.forEach(c => { const s = srsCache[c.id] || {}; s.nextReview = addDaysToInt(today, 1); srsCache[c.id] = s; });
+  const remaining = MAX_SESSION - toReview.length;
+  const newItems = ALL_DATA.filter(c => !srsCache[c.id] || srsCache[c.id].level === 0 && srsCache[c.id].nextReview === 0).sort((a, b) => a.frequency - b.frequency).slice(0, remaining);
+  return { review: toReview, newItems, overflow: overflow.length };
+}
+
+// ===== SPEECH =====
+let currentCollocation = '', currentExample = '', voices = [];
+function loadVoices() { voices = speechSynthesis.getVoices(); }
+loadVoices();
+if (speechSynthesis.onvoiceschanged !== undefined) speechSynthesis.onvoiceschanged = loadVoices;
+function getEnglishVoice() { return voices.find(v => v.lang === 'en-US' && v.localService) || voices.find(v => v.lang === 'en-US') || voices.find(v => v.lang.startsWith('en')) || null; }
+function speak(text, rate = 0.85, onEnd = null) { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = 'en-US'; u.rate = rate; u.pitch = 1.0; const v = getEnglishVoice(); if (v) u.voice = v; if (onEnd) u.onend = onEnd; speechSynthesis.speak(u); }
+window.speakCollocation = () => { const b = document.getElementById('btn-audio-col'); b.classList.add('playing'); speak(currentCollocation, 0.8, () => b.classList.remove('playing')); };
+window.speakExample = () => { const b = document.getElementById('btn-audio-ex'); b.classList.add('playing'); speak(currentExample, 0.85, () => b.classList.remove('playing')); };
+function speakFeedback(t) { setTimeout(() => speak(t, 0.85), 300); }
+
+// ===== 係数 =====
+function freqCoef(f) { return [1.0, 1.5, 2.0, 3.0][f] || 1.0; }
+function levelCoef(l) { if (l <= 1) return 1.0; if (l <= 3) return 2.0; if (l === 4) return 3.0; return 5.0; }
+function cefrCoef(c) { if (c <= 1.0) return 1.0; if (c <= 1.5) return 1.5; if (c <= 2.0) return 2.0; return 3.0; }
+function calcScore(c, remainMs, level) { return remainMs * freqCoef(c.frequency) * levelCoef(level) * cefrCoef(c.cefr) / 1000; }
+
+// ===== DEBUG =====
+function showToast(msg) { const t = document.getElementById('debug-toast'); t.textContent = msg; t.style.display = 'block'; setTimeout(() => { t.style.display = 'none'; }, 2000); }
+window.toggleDebug = () => { const b = document.getElementById('srs-panel-body'); const t = document.getElementById('debug-toggle'); b.classList.toggle('open'); t.textContent = b.classList.contains('open') ? '▲' : '▼'; };
+window.forceCorrect = async (id) => { updateSRSLocal(id, true); await saveToFirebase('srs', srsCache); const srs = getSRS(id); showToast(`✓ Lv→${srs.level} Next:D${String(srs.nextReview).slice(6)}`); updateHome(); };
+window.forceIncorrect = async (id) => { updateSRSLocal(id, false); await saveToFirebase('srs', srsCache); const srs = getSRS(id); showToast(`✗ Lv→${srs.level} Next:D${String(srs.nextReview).slice(6)}`); updateHome(); };
+
+function renderSRSStatus() {
+  const today = todayInt();
+  const colors = ['#aaa', '#7ac4e8', '#7ae8a0', '#e8c97a', '#e87a7a', '#2d6a4f'];
+  document.getElementById('srs-status-list').innerHTML = ALL_DATA.map(c => {
+    const s = srsCache[c.id] || { level: 0, nextReview: 0 };
+    const isDue = s.nextReview > 0 && s.nextReview <= today;
+    const dueText = s.nextReview === 0 ? 'New' : isDue ? '⚡Due' : 'D' + String(s.nextReview).slice(6);
+    return `<div class="srs-item"><span class="srs-col">${c.collocation}</span><span class="srs-level" style="color:${colors[s.level]}">Lv${s.level}</span><span class="srs-next">${dueText}</span><div class="srs-btn-group"><button class="btn-force-correct" onclick="forceCorrect('${c.id}')">✓</button><button class="btn-force-incorrect" onclick="forceIncorrect('${c.id}')">✗</button></div></div>`;
   }).join('');
 }
-function simulateDays(n){dayOffset+=n;const today=todayInt();const s=String(today);document.getElementById('day-offset-label').textContent=`+${dayOffset}`;document.getElementById('simulated-date').textContent=`${s.slice(0,4)}/${s.slice(4,6)}/${s.slice(6,8)}`;updateHome();}
-function simulateStudy(){const stats=loadStats();const today=todayInt();const lastStudied=stats.lastStudied||0;let newStreak=1;if(lastStudied>0&&diffDays(lastStudied,today)===1)newStreak=(stats.streak||0)+1;stats.streak=newStreak;stats.lastStudied=today;stats.studiedToday=today;saveStats(stats);showToast(`📚 Studied: streak=${newStreak}`);updateHome();}
-function simulateBreakStreak(){const stats=loadStats();stats.lastStudied=addDaysToInt(todayInt(),-3);stats.studiedToday=0;saveStats(stats);showToast('💔 Streak broken');updateHome();}
-function resetAll(){localStorage.removeItem('srs_v1');localStorage.removeItem('stats_v1');dayOffset=0;masteredCount=0;highScore=0;document.getElementById('day-offset-label').textContent='+0';document.getElementById('simulated-date').textContent='today';showToast('🔄 Reset');updateHome();}
 
-let session=[],sessionMeta=[],inputIndex=0,outputIndex=0,rpIndex=0;
-let results=[],rpResults=[],timerInterval=null,timeLeft=6,answered=false,questionStartTime=0;
-let masteredCount=0,highScore=0;
+window.simulateDays = (n) => { dayOffset += n; const today = todayInt(); const s = String(today); document.getElementById('day-offset-label').textContent = `+${dayOffset}`; document.getElementById('simulated-date').textContent = `${s.slice(0,4)}/${s.slice(4,6)}/${s.slice(6,8)}`; updateHome(); };
+window.simulateStudy = () => { const today = todayInt(); const lastStudied = statsCache.lastStudied || 0; let newStreak = 1; if (lastStudied > 0 && diffDays(lastStudied, today) === 1) newStreak = (statsCache.streak || 0) + 1; updateStatsLocal({ streak: newStreak, lastStudied: today, studiedToday: today }); saveStats(); showToast(`📚 Studied: streak=${newStreak}`); updateHome(); };
+window.simulateBreakStreak = () => { updateStatsLocal({ lastStudied: addDaysToInt(todayInt(), -3), studiedToday: 0 }); saveStats(); showToast('💔 Streak broken'); updateHome(); };
+window.resetAll = async () => { srsCache = {}; statsCache = {}; dayOffset = 0; masteredCount = 0; highScore = 0; localStorage.removeItem('srs_v1'); localStorage.removeItem('stats_v1'); if (db && uid) { await set(ref(db, `users/${uid}/srs`), {}); await set(ref(db, `users/${uid}/stats`), {}); } document.getElementById('day-offset-label').textContent = '+0'; document.getElementById('simulated-date').textContent = 'today'; showToast('🔄 Reset'); updateHome(); };
 
-function updateHome(){
-  const sel=selectSession();
-  session=[...sel.review,...sel.newItems];
-  sessionMeta=[...sel.review.map(()=>({isReview:true})),...sel.newItems.map(()=>({isReview:false}))];
-  const stats=loadStats();const streak=getStreak();masteredCount=stats.masteredCount||0;highScore=stats.highScore||0;
-  document.getElementById('stat-total').textContent=session.length;
-  document.getElementById('stat-streak').textContent=streak;
-  document.getElementById('stat-mastered').textContent=masteredCount;
-  document.getElementById('home-highscore').textContent=highScore>0?highScore.toFixed(2)+'pt':'—';
-  document.getElementById('sb-review').textContent=sel.review.length;
-  document.getElementById('sb-new').textContent=sel.newItems.length;
-  document.getElementById('sb-total').textContent=session.length;
-  const notice=document.getElementById('overflow-notice');
-  if(sel.overflow>0){notice.textContent=`⚠ ${sel.overflow} review(s) → tomorrow`;notice.className='overflow-notice show';}
-  else notice.className='overflow-notice';
-  document.getElementById('start-btn').disabled=session.length===0;
-  document.getElementById('start-btn').textContent=session.length===0?'No items today ✓':'Start Learning →';
-  // プレビュータグ
-  const m=loadSRS();
-  document.getElementById('preview-tags').innerHTML=session.map(c=>{
-    const isReview=m[c.id]&&m[c.id].nextReview>0&&m[c.id].nextReview<=todayInt();
-    return`<span class="preview-tag ${isReview?'review-tag':''}">${c.collocation}</span>`;
-  }).join('');
-  renderStreakDots();renderSRSStatus();
+function renderStreakDots() {
+  const stats = getStats(); const today = todayInt(); const streak = getStreak(); const lastStudied = stats.lastStudied || 0;
+  const dots = [];
+  for (let i = 6; i >= 0; i--) { const d = addDaysToInt(today, -i); let type = 'future'; if (d === today) { type = stats.studiedToday === today ? 'done' : 'today'; } else if (d < today) { if (lastStudied > 0 && d >= addDaysToInt(lastStudied, -(streak - 1)) && d <= lastStudied) type = 'done'; else type = 'missed'; } const dayLabel = ['Su','Mo','Tu','We','Th','Fr','Sa'][new Date(String(d).replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3')).getDay()]; dots.push({ d, type, label: dayLabel }); }
+  document.getElementById('streak-dots').innerHTML = dots.map(dot => `<div class="streak-dot ${dot.type}">${dot.label}</div>`).join('');
+  const statusEl = document.getElementById('streak-status'); const isTodayDone = stats.studiedToday === today;
+  if (streak === 0 && !isTodayDone) { statusEl.className = 'streak-status broken'; statusEl.textContent = 'Start your streak today!'; }
+  else if (isTodayDone) { statusEl.className = 'streak-status active'; statusEl.textContent = `🔥 ${streak} day streak!`; }
+  else if (lastStudied > 0 && diffDays(lastStudied, today) === 1) { statusEl.className = 'streak-status warning'; statusEl.textContent = `⚠ Keep your ${streak}-day streak!`; }
+  else { statusEl.className = 'streak-status broken'; statusEl.textContent = 'Streak broken — start again!'; }
+  document.getElementById('streak-count').textContent = `${streak} day${streak !== 1 ? 's' : ''}`;
 }
 
-function startSession(){if(session.length===0)return;inputIndex=0;results=[];showScreen('input');showInput();}
-function showInput(){
-  const c=session[inputIndex];const meta=sessionMeta[inputIndex];
-  currentCollocation=c.collocation;currentExample=c.example1;
-  document.getElementById('input-progress').style.width=`${(inputIndex/session.length)*100}%`;
-  document.getElementById('input-counter').textContent=`${inputIndex+1} / ${session.length}`;
-  document.getElementById('col-main').textContent=c.collocation;
-  document.getElementById('col-type').textContent=c.type;
-  document.getElementById('col-example').innerHTML=c.example1.replace(c.collocation,`<mark>${c.collocation}</mark>`);
-  document.getElementById('col-explanation').textContent=c.explanation;
-  let tags=c.similar.map(s=>`<span class="similar-tag">${s}</span>`).join('');
-  if(c.opposite)tags+=`<span class="opposite-tag">↔ ${c.opposite}</span>`;
-  document.getElementById('col-similar').innerHTML=tags;
-  const badge=document.getElementById('input-type-badge');
-  badge.textContent=meta&&meta.isReview?'Review':'New';
-  badge.className=meta&&meta.isReview?'phase-badge':'phase-badge new-badge';
+// ===== STATE =====
+let session = [], sessionMeta = [], inputIndex = 0, outputIndex = 0, rpIndex = 0;
+let results = [], rpResults = [], timerInterval = null, timeLeft = 6, answered = false, questionStartTime = 0;
+let masteredCount = 0, highScore = 0;
+
+function updateHome() {
+  const sel = selectSession();
+  session = [...sel.review, ...sel.newItems];
+  sessionMeta = [...sel.review.map(() => ({ isReview: true })), ...sel.newItems.map(() => ({ isReview: false }))];
+  const stats = getStats(); const streak = getStreak();
+  masteredCount = stats.masteredCount || 0; highScore = stats.highScore || 0;
+  document.getElementById('stat-total').textContent = session.length;
+  document.getElementById('stat-streak').textContent = streak;
+  document.getElementById('stat-mastered').textContent = masteredCount;
+  document.getElementById('home-highscore').textContent = highScore > 0 ? highScore.toFixed(2) + 'pt' : '—';
+  document.getElementById('sb-review').textContent = sel.review.length;
+  document.getElementById('sb-new').textContent = sel.newItems.length;
+  document.getElementById('sb-total').textContent = session.length;
+  const notice = document.getElementById('overflow-notice');
+  if (sel.overflow > 0) { notice.textContent = `⚠ ${sel.overflow} review(s) → tomorrow`; notice.className = 'overflow-notice show'; } else notice.className = 'overflow-notice';
+  document.getElementById('start-btn').disabled = session.length === 0;
+  document.getElementById('start-btn').textContent = session.length === 0 ? 'No items today ✓' : 'Start Learning →';
+  const today = todayInt();
+  document.getElementById('preview-tags').innerHTML = session.map(c => { const isReview = srsCache[c.id] && srsCache[c.id].nextReview > 0 && srsCache[c.id].nextReview <= today; return `<span class="preview-tag ${isReview ? 'review-tag' : ''}">${c.collocation}</span>`; }).join('');
+  renderStreakDots(); renderSRSStatus();
+}
+
+window.startSession = () => { if (session.length === 0) return; inputIndex = 0; results = []; showScreen('input'); showInput(); };
+
+function showInput() {
+  const c = session[inputIndex]; const meta = sessionMeta[inputIndex];
+  currentCollocation = c.collocation; currentExample = c.example1;
+  document.getElementById('input-progress').style.width = `${(inputIndex / session.length) * 100}%`;
+  document.getElementById('input-counter').textContent = `${inputIndex + 1} / ${session.length}`;
+  document.getElementById('col-main').textContent = c.collocation;
+  document.getElementById('col-type').textContent = c.type;
+  document.getElementById('col-example').innerHTML = c.example1.replace(c.collocation, `<mark>${c.collocation}</mark>`);
+  document.getElementById('col-explanation').textContent = c.explanation;
+  let tags = c.similar.map(s => `<span class="similar-tag">${s}</span>`).join('');
+  if (c.opposite) tags += `<span class="opposite-tag">↔ ${c.opposite}</span>`;
+  document.getElementById('col-similar').innerHTML = tags;
+  const badge = document.getElementById('input-type-badge');
+  badge.textContent = meta && meta.isReview ? 'Review' : 'New';
+  badge.className = meta && meta.isReview ? 'phase-badge' : 'phase-badge new-badge';
   document.getElementById('btn-audio-col').classList.remove('playing');
   document.getElementById('btn-audio-ex').classList.remove('playing');
-  setTimeout(()=>speak(c.collocation,0.8),400);
-}
-function nextInput(action){speechSynthesis.cancel();if(action==='return'){showInput();return;}inputIndex++;if(inputIndex>=session.length){outputIndex=0;showScreen('output');showOutput();}else showInput();}
-
-function makeChoices(correct){
-  // 同じタイプのコロケーションから選択肢を優先的に選ぶ
-  const c=session[outputIndex];
-  const sameType=ALL_DATA.filter(d=>d.answer!==correct&&d.type===c.type);
-  const otherType=ALL_DATA.filter(d=>d.answer!==correct&&d.type!==c.type);
-  const pool=[...sameType,...otherType].map(d=>d.answer);
-  const unique=[...new Set(pool)];
-  return [...unique.sort(()=>Math.random()-0.5).slice(0,3),correct].sort(()=>Math.random()-0.5);
+  setTimeout(() => speak(c.collocation, 0.8), 400);
 }
 
-function showOutput(){
-  answered=false;questionStartTime=Date.now();const c=session[outputIndex];
-  document.getElementById('output-progress').style.width=`${(outputIndex/session.length)*100}%`;
-  document.getElementById('output-counter').textContent=`${outputIndex+1} / ${session.length}`;
-  document.getElementById('blank-sentence').innerHTML=c.example2.replace('_____',`<span class="blank">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>`);
-  document.getElementById('feedback-box').className='feedback-box';
-  document.getElementById('next-btn').style.display='none';document.getElementById('score-pop').textContent='';
-  const choices=makeChoices(c.answer);
-  document.getElementById('choices-grid').innerHTML=choices.map(ch=>`<button class="choice-btn" onclick="selectChoice(this,'${ch.replace(/'/g,"\\'")}')"><span>${ch}</span></button>`).join('');
+window.nextInput = (action) => { speechSynthesis.cancel(); if (action === 'return') { showInput(); return; } inputIndex++; if (inputIndex >= session.length) { outputIndex = 0; showScreen('output'); showOutput(); } else showInput(); };
+
+function makeChoices(correct) {
+  const c = session[outputIndex];
+  const sameType = ALL_DATA.filter(d => d.answer !== correct && d.type === c.type);
+  const otherType = ALL_DATA.filter(d => d.answer !== correct && d.type !== c.type);
+  const pool = [...new Set([...sameType, ...otherType].map(d => d.answer))];
+  return [...pool.sort(() => Math.random() - 0.5).slice(0, 3), correct].sort(() => Math.random() - 0.5);
+}
+
+function showOutput() {
+  answered = false; questionStartTime = Date.now(); const c = session[outputIndex];
+  document.getElementById('output-progress').style.width = `${(outputIndex / session.length) * 100}%`;
+  document.getElementById('output-counter').textContent = `${outputIndex + 1} / ${session.length}`;
+  document.getElementById('blank-sentence').innerHTML = c.example2.replace('_____', `<span class="blank">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>`);
+  document.getElementById('feedback-box').className = 'feedback-box';
+  document.getElementById('next-btn').style.display = 'none'; document.getElementById('score-pop').textContent = '';
+  const choices = makeChoices(c.answer);
+  document.getElementById('choices-grid').innerHTML = choices.map(ch => `<button class="choice-btn" onclick="selectChoice(this,'${ch.replace(/'/g, "\\'")}')"><span>${ch}</span></button>`).join('');
   startTimer();
 }
-function selectChoice(btn,chosen){
-  if(answered)return;answered=true;clearInterval(timerInterval);
-  const c=session[outputIndex];const correct=c.answer;
-  const elapsed=Date.now()-questionStartTime;const remainMs=Math.max(0,6000-elapsed);
-  const isCorrect=chosen===correct||c.similar.map(s=>s.toLowerCase()).includes(chosen.toLowerCase());
-  document.querySelectorAll('.choice-btn').forEach(b=>{b.disabled=true;const l=b.querySelector('span').textContent;if(l===correct)b.classList.add('correct');else if(l===chosen&&!isCorrect)b.classList.add('wrong');});
-  const srs=getSRS(c.id);const qScore=isCorrect?calcScore(c,remainMs,srs.level):0;
-  updateSRS(c.id,isCorrect);const newSRS=getSRS(c.id);
-  const fb=document.getElementById('feedback-box');
-  if(isCorrect){fb.className='feedback-box correct';fb.textContent=`✓ Correct! +${qScore.toFixed(2)}pt  Lv${srs.level}→${newSRS.level}`;document.getElementById('score-pop').textContent=`+${qScore.toFixed(2)}pt`;}
-  else{fb.className='feedback-box wrong';fb.textContent=`✗ "${correct}"  Lv${srs.level}→${newSRS.level}`;document.getElementById('score-pop').textContent='+0pt';}
-  speakFeedback(correct);results.push({collocation:c.collocation,correct:isCorrect,score:qScore,remainMs,srs});
-  document.getElementById('next-btn').style.display='block';
-}
-function startTimer(){clearInterval(timerInterval);timeLeft=6;updateTimer();timerInterval=setInterval(()=>{timeLeft-=0.1;if(timeLeft<=0){timeLeft=0;clearInterval(timerInterval);if(!answered)timeUp();}updateTimer();},100);}
-function updateTimer(){const d=document.getElementById('timer-display');d.textContent=Math.ceil(timeLeft);d.className=timeLeft<=2?'timer-circle warning':'timer-circle';}
-function timeUp(){
-  answered=true;const c=session[outputIndex];
-  document.querySelectorAll('.choice-btn').forEach(b=>{b.disabled=true;if(b.querySelector('span').textContent===c.answer)b.classList.add('correct');});
-  updateSRS(c.id,false);
-  document.getElementById('feedback-box').className='feedback-box wrong';
-  document.getElementById('feedback-box').textContent=`⏱ Time's up! "${c.answer}"`;
-  document.getElementById('score-pop').textContent='+0pt';speakFeedback(c.answer);
-  results.push({collocation:c.collocation,correct:false,score:0,remainMs:0,srs:getSRS(c.id)});
-  document.getElementById('next-btn').style.display='block';
-}
-function nextOutput(){speechSynthesis.cancel();outputIndex++;if(outputIndex>=session.length){rpIndex=0;rpResults=[];showScreen('roleplay');showRoleplay();}else showOutput();}
 
-function showRoleplay(){
-  const c=session[rpIndex];const rp=RP_QUESTIONS[c.id];
-  document.getElementById('rp-progress').style.width=`${(rpIndex/session.length)*100}%`;
-  document.getElementById('rp-counter').textContent=`${rpIndex+1} / ${session.length}`;
-  document.getElementById('rp-scene').textContent=rp.scene;
-  const conv=document.getElementById('rp-conversation');
-  conv.innerHTML=`<div class="rp-bubble-wrap"><div class="rp-speaker">Manager</div><div class="rp-bubble manager">"${rp.q}"</div></div>`;
-  document.getElementById('rp-answer').value='';
-  document.getElementById('rp-input-area').style.display='block';document.getElementById('rp-btn-row').style.display='grid';
-  document.getElementById('rp-next-btn').style.display='none';document.getElementById('rp-loading').className='rp-loading';
-  setTimeout(()=>speak(rp.q,0.85),400);
+window.selectChoice = async (btn, chosen) => {
+  if (answered) return; answered = true; clearInterval(timerInterval);
+  const c = session[outputIndex]; const correct = c.answer;
+  const elapsed = Date.now() - questionStartTime; const remainMs = Math.max(0, 6000 - elapsed);
+  const isCorrect = chosen === correct || c.similar.map(s => s.toLowerCase()).includes(chosen.toLowerCase());
+  document.querySelectorAll('.choice-btn').forEach(b => { b.disabled = true; const l = b.querySelector('span').textContent; if (l === correct) b.classList.add('correct'); else if (l === chosen && !isCorrect) b.classList.add('wrong'); });
+  const srs = getSRS(c.id); const qScore = isCorrect ? calcScore(c, remainMs, srs.level) : 0;
+  await updateSRS(c.id, isCorrect); const newSRS = getSRS(c.id);
+  const fb = document.getElementById('feedback-box');
+  if (isCorrect) { fb.className = 'feedback-box correct'; fb.textContent = `✓ Correct! +${qScore.toFixed(2)}pt  Lv${srs.level}→${newSRS.level}`; document.getElementById('score-pop').textContent = `+${qScore.toFixed(2)}pt`; }
+  else { fb.className = 'feedback-box wrong'; fb.textContent = `✗ "${correct}"  Lv${srs.level}→${newSRS.level}`; document.getElementById('score-pop').textContent = '+0pt'; }
+  speakFeedback(correct); results.push({ collocation: c.collocation, correct: isCorrect, score: qScore, remainMs, srs });
+  document.getElementById('next-btn').style.display = 'block';
+};
+
+function startTimer() { clearInterval(timerInterval); timeLeft = 6; updateTimer(); timerInterval = setInterval(() => { timeLeft -= 0.1; if (timeLeft <= 0) { timeLeft = 0; clearInterval(timerInterval); if (!answered) timeUp(); } updateTimer(); }, 100); }
+function updateTimer() { const d = document.getElementById('timer-display'); d.textContent = Math.ceil(timeLeft); d.className = timeLeft <= 2 ? 'timer-circle warning' : 'timer-circle'; }
+async function timeUp() {
+  answered = true; const c = session[outputIndex];
+  document.querySelectorAll('.choice-btn').forEach(b => { b.disabled = true; if (b.querySelector('span').textContent === c.answer) b.classList.add('correct'); });
+  await updateSRS(c.id, false);
+  document.getElementById('feedback-box').className = 'feedback-box wrong';
+  document.getElementById('feedback-box').textContent = `⏱ Time's up! "${c.answer}"`;
+  document.getElementById('score-pop').textContent = '+0pt'; speakFeedback(c.answer);
+  results.push({ collocation: c.collocation, correct: false, score: 0, remainMs: 0, srs: getSRS(c.id) });
+  document.getElementById('next-btn').style.display = 'block';
 }
-async function submitRoleplay(){
-  const userAnswer=document.getElementById('rp-answer').value.trim();if(!userAnswer)return;
-  speechSynthesis.cancel();const c=session[rpIndex];
-  document.getElementById('rp-input-area').style.display='none';document.getElementById('rp-btn-row').style.display='none';
-  const conv=document.getElementById('rp-conversation');
-  conv.insertAdjacentHTML('beforeend',`<div class="rp-bubble-wrap"><div class="rp-speaker">You</div><div class="rp-bubble user">"${userAnswer}"</div></div>`);
-  document.getElementById('rp-loading').className='rp-loading show';
-  try{
-    const prompt=`You are a manager. Collocation practiced: "${c.collocation}". User said: "${userAnswer}". ONE reply (max 2 sentences): correct if needed, close conversation.`;
-    const response=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:150,messages:[{role:"user",content:prompt}]})});
-    const data=await response.json();const reply=data.content?.[0]?.text||"Good effort!";
-    document.getElementById('rp-loading').className='rp-loading';
-    conv.insertAdjacentHTML('beforeend',`<div class="rp-bubble-wrap"><div class="rp-speaker">Manager</div><div class="rp-bubble reply">"${reply}"</div></div>`);
-    rpResults.push({collocation:c.collocation,used:true});setTimeout(()=>speak(reply,0.85),300);
-  }catch(e){
-    document.getElementById('rp-loading').className='rp-loading';
-    const mock=`Good response! Keep practicing "${c.collocation}" naturally.`;
-    conv.insertAdjacentHTML('beforeend',`<div class="rp-bubble-wrap"><div class="rp-speaker">Manager</div><div class="rp-bubble reply">"${mock}"</div></div>`);
-    rpResults.push({collocation:c.collocation,used:true});setTimeout(()=>speak(mock,0.85),300);
+window.nextOutput = () => { speechSynthesis.cancel(); outputIndex++; if (outputIndex >= session.length) { rpIndex = 0; rpResults = []; showScreen('roleplay'); showRoleplay(); } else showOutput(); };
+
+function showRoleplay() {
+  const c = session[rpIndex]; const rp = RP_QUESTIONS[c.id];
+  document.getElementById('rp-progress').style.width = `${(rpIndex / session.length) * 100}%`;
+  document.getElementById('rp-counter').textContent = `${rpIndex + 1} / ${session.length}`;
+  document.getElementById('rp-scene').textContent = rp.scene;
+  const conv = document.getElementById('rp-conversation');
+  conv.innerHTML = `<div class="rp-bubble-wrap"><div class="rp-speaker">Manager</div><div class="rp-bubble manager">"${rp.q}"</div></div>`;
+  document.getElementById('rp-answer').value = '';
+  document.getElementById('rp-input-area').style.display = 'block'; document.getElementById('rp-btn-row').style.display = 'grid';
+  document.getElementById('rp-next-btn').style.display = 'none'; document.getElementById('rp-loading').className = 'rp-loading';
+  setTimeout(() => speak(rp.q, 0.85), 400);
+}
+window.submitRoleplay = async () => {
+  const userAnswer = document.getElementById('rp-answer').value.trim(); if (!userAnswer) return;
+  speechSynthesis.cancel(); const c = session[rpIndex];
+  document.getElementById('rp-input-area').style.display = 'none'; document.getElementById('rp-btn-row').style.display = 'none';
+  const conv = document.getElementById('rp-conversation');
+  conv.insertAdjacentHTML('beforeend', `<div class="rp-bubble-wrap"><div class="rp-speaker">You</div><div class="rp-bubble user">"${userAnswer}"</div></div>`);
+  document.getElementById('rp-loading').className = 'rp-loading show';
+  try {
+    const prompt = `You are a manager. Collocation practiced: "${c.collocation}". User said: "${userAnswer}". ONE reply (max 2 sentences): correct if needed, close conversation.`;
+    const response = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 150, messages: [{ role: "user", content: prompt }] }) });
+    const data = await response.json(); const reply = data.content?.[0]?.text || "Good effort!";
+    document.getElementById('rp-loading').className = 'rp-loading';
+    conv.insertAdjacentHTML('beforeend', `<div class="rp-bubble-wrap"><div class="rp-speaker">Manager</div><div class="rp-bubble reply">"${reply}"</div></div>`);
+    rpResults.push({ collocation: c.collocation, used: true }); setTimeout(() => speak(reply, 0.85), 300);
+  } catch (e) {
+    document.getElementById('rp-loading').className = 'rp-loading';
+    const mock = `Good response! Keep practicing "${c.collocation}" naturally.`;
+    conv.insertAdjacentHTML('beforeend', `<div class="rp-bubble-wrap"><div class="rp-speaker">Manager</div><div class="rp-bubble reply">"${mock}"</div></div>`);
+    rpResults.push({ collocation: c.collocation, used: true }); setTimeout(() => speak(mock, 0.85), 300);
   }
-  document.getElementById('rp-next-btn').style.display='block';
-}
-function skipRoleplay(){speechSynthesis.cancel();rpResults.push({collocation:session[rpIndex].collocation,used:false});nextRoleplay();}
-function nextRoleplay(){speechSynthesis.cancel();rpIndex++;if(rpIndex>=session.length)showResults();else showRoleplay();}
+  document.getElementById('rp-next-btn').style.display = 'block';
+};
+window.skipRoleplay = () => { speechSynthesis.cancel(); rpResults.push({ collocation: session[rpIndex].collocation, used: false }); nextRoleplay(); };
+window.nextRoleplay = () => { speechSynthesis.cancel(); rpIndex++; if (rpIndex >= session.length) showResults(); else showRoleplay(); };
 
-function showResults(){
-  speechSynthesis.cancel();recordStudySession();
-  const stats=loadStats();const newStreak=getStreak();
-  const correctResults=results.filter(r=>r.correct);
-  const baseAvg=results.length>0?(results.reduce((s,r)=>s+r.score,0)/results.length):0;
-  masteredCount=(stats.masteredCount||0)+correctResults.length;
-  const masteredBonus=masteredCount*0.1;const streakBonus=newStreak*0.05;
-  const isPerfect=results.every(r=>r.correct);const subtotal=baseAvg+masteredBonus+streakBonus;
-  const total=isPerfect?subtotal*1.2:subtotal;const isNewHigh=total>(stats.highScore||0);
-  stats.masteredCount=masteredCount;if(isNewHigh)stats.highScore=total;saveStats(stats);highScore=stats.highScore;
-  const banner=document.getElementById('session-complete-banner');
-  if(newStreak>=2){banner.className='session-complete-banner show';document.getElementById('session-complete-text').textContent=`🔥 ${newStreak} Day Streak!`;document.getElementById('session-complete-sub').textContent=newStreak>=7?'Amazing!':'Keep it up!';}
-  else banner.className='session-complete-banner';
-  document.getElementById('highscore-banner').className=isNewHigh?'highscore-banner show':'highscore-banner';
-  document.getElementById('final-score-display').textContent=total.toFixed(2);
-  document.getElementById('b-base').textContent=baseAvg.toFixed(2)+'pt';
-  document.getElementById('b-mastered').textContent='+'+masteredBonus.toFixed(2)+'pt';
-  document.getElementById('b-streak').textContent=`+${streakBonus.toFixed(2)}pt (${newStreak}d)`;
-  document.getElementById('b-perfect').textContent=isPerfect?'Applied':'—';
-  document.getElementById('b-total').textContent=total.toFixed(2)+'pt';
-  document.getElementById('result-list-body').innerHTML=results.map(r=>`
+async function showResults() {
+  speechSynthesis.cancel(); recordStudySession();
+  const stats = getStats(); const newStreak = getStreak();
+  const correctResults = results.filter(r => r.correct);
+  const baseAvg = results.length > 0 ? (results.reduce((s, r) => s + r.score, 0) / results.length) : 0;
+  masteredCount = (stats.masteredCount || 0) + correctResults.length;
+  const masteredBonus = masteredCount * 0.1; const streakBonus = newStreak * 0.05;
+  const isPerfect = results.every(r => r.correct); const subtotal = baseAvg + masteredBonus + streakBonus;
+  const total = isPerfect ? subtotal * 1.2 : subtotal; const isNewHigh = total > (stats.highScore || 0);
+  updateStatsLocal({ masteredCount, ...(isNewHigh ? { highScore: total } : {}) });
+  await saveStats();
+  highScore = statsCache.highScore || 0;
+  const banner = document.getElementById('session-complete-banner');
+  if (newStreak >= 2) { banner.className = 'session-complete-banner show'; document.getElementById('session-complete-text').textContent = `🔥 ${newStreak} Day Streak!`; document.getElementById('session-complete-sub').textContent = newStreak >= 7 ? 'Amazing!' : 'Keep it up!'; }
+  else banner.className = 'session-complete-banner';
+  document.getElementById('highscore-banner').className = isNewHigh ? 'highscore-banner show' : 'highscore-banner';
+  document.getElementById('final-score-display').textContent = total.toFixed(2);
+  document.getElementById('b-base').textContent = baseAvg.toFixed(2) + 'pt';
+  document.getElementById('b-mastered').textContent = '+' + masteredBonus.toFixed(2) + 'pt';
+  document.getElementById('b-streak').textContent = `+${streakBonus.toFixed(2)}pt (${newStreak}d)`;
+  document.getElementById('b-perfect').textContent = isPerfect ? 'Applied' : '—';
+  document.getElementById('b-total').textContent = total.toFixed(2) + 'pt';
+  document.getElementById('result-list-body').innerHTML = results.map(r => `
     <div class="result-item">
-      <div class="result-left"><div class="result-collocation">${r.collocation}</div><div class="result-phase">Output · ${r.remainMs>0?(r.remainMs/1000).toFixed(1)+'s':'-'}</div></div>
-      <span class="result-score-col">${r.correct?'+'+r.score.toFixed(2)+'pt':'+0pt'}</span>
-      <span class="${r.correct?'result-ok':'result-ng'}">${r.correct?'✓':'✗'}</span>
+      <div class="result-left"><div class="result-collocation">${r.collocation}</div><div class="result-phase">Output · ${r.remainMs > 0 ? (r.remainMs / 1000).toFixed(1) + 's' : '-'}</div></div>
+      <span class="result-score-col">${r.correct ? '+' + r.score.toFixed(2) + 'pt' : '+0pt'}</span>
+      <span class="${r.correct ? 'result-ok' : 'result-ng'}">${r.correct ? '✓' : '✗'}</span>
     </div>`).join('');
   showScreen('result');
 }
-function goHome(){speechSynthesis.cancel();showScreen('home');updateHome();}
-function showScreen(name){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(`screen-${name}`).classList.add('active');}
-updateHome();
+window.goHome = () => { speechSynthesis.cancel(); showScreen('home'); updateHome(); };
+function showScreen(name) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(`screen-${name}`).classList.add('active'); }
+
+// 起動
+initFirebase();
 </script>
 </body>
 </html>
