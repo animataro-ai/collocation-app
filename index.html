@@ -142,6 +142,13 @@
   .rp-btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 9px; }
   .rp-submit { padding: 13px; border-radius: var(--radius); border: none; background: var(--accent); color: #fff; font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; }
   .rp-skip { padding: 13px; border-radius: var(--radius); border: 2px solid var(--border); background: var(--surface); color: var(--text2); font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .rp-btn-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 9px; }
+  .rp-mic { padding: 13px 8px; border-radius: var(--radius); border: 2px solid var(--border); background: var(--surface); color: var(--text2); font-family: 'Outfit', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 4px; }
+  .rp-mic.recording { background: var(--danger-light); border-color: var(--danger); color: var(--danger); animation: pulse 1s ease-in-out infinite; }
+  .rp-mic.recording::before { content: '⏹ '; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+  .voice-status { font-family: 'Nunito', sans-serif; font-size: 12px; color: var(--text2); margin-top: 6px; min-height: 16px; font-style: italic; }
+  .voice-status.active { color: var(--danger); font-weight: 600; }
   .rp-loading { text-align: center; padding: 12px; color: var(--text2); font-family: 'Outfit', sans-serif; font-size: 14px; font-weight: 600; letter-spacing: 1px; display: none; }
   .rp-loading.show { display: block; }
   .dot-anim::after { content: '.'; animation: dots 1.2s steps(3,end) infinite; }
@@ -280,8 +287,15 @@
   <div class="rp-scene"><div class="rp-scene-label">Scene</div><div class="rp-scene-text" id="rp-scene"></div></div>
   <div id="rp-conversation"></div>
   <div class="rp-loading dot-anim" id="rp-loading">Thinking</div>
-  <div class="rp-input-area" id="rp-input-area"><textarea class="rp-textarea" id="rp-answer" placeholder="Type your response here..." rows="3"></textarea></div>
-  <div class="rp-btn-row" id="rp-btn-row"><button class="rp-submit" onclick="submitRoleplay()">Send →</button><button class="rp-skip" onclick="skipRoleplay()">Skip ↩</button></div>
+  <div class="rp-input-area" id="rp-input-area">
+    <textarea class="rp-textarea" id="rp-answer" placeholder="Type your response here..." rows="3"></textarea>
+    <div class="voice-status" id="voice-status"></div>
+  </div>
+  <div class="rp-btn-row-3" id="rp-btn-row">
+    <button class="rp-mic" id="rp-mic-btn" onclick="toggleVoiceInput()">🎤 Speak</button>
+    <button class="rp-submit" onclick="submitRoleplay()">Send →</button>
+    <button class="rp-skip" onclick="skipRoleplay()">Skip ↩</button>
+  </div>
   <button class="btn btn-primary" id="rp-next-btn" onclick="nextRoleplay()" style="display:none">Next →</button>
 </div>
 
@@ -685,9 +699,101 @@ function showRoleplay() {
   document.getElementById('rp-answer').value = '';
   document.getElementById('rp-input-area').style.display = 'block'; document.getElementById('rp-btn-row').style.display = 'grid';
   document.getElementById('rp-next-btn').style.display = 'none'; document.getElementById('rp-loading').className = 'rp-loading';
+  document.getElementById('voice-status').textContent = '';
+  document.getElementById('voice-status').className = 'voice-status';
+  stopVoiceInput();
   setTimeout(() => speak(rp.q, 0.85), 400);
 }
+// ===== 音声入力 =====
+let recognition = null;
+let isRecording = false;
+
+function initSpeechRecognition() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    console.warn('Speech Recognition not supported');
+    return null;
+  }
+  const r = new SpeechRecognition();
+  r.lang = 'en-US';
+  r.continuous = false;
+  r.interimResults = true;
+  r.maxAlternatives = 1;
+  return r;
+}
+
+window.toggleVoiceInput = () => {
+  if (isRecording) {
+    stopVoiceInput();
+  } else {
+    startVoiceInput();
+  }
+};
+
+function startVoiceInput() {
+  recognition = initSpeechRecognition();
+  if (!recognition) {
+    document.getElementById('voice-status').textContent = 'Voice input not supported on this browser.';
+    return;
+  }
+  const btn = document.getElementById('rp-mic-btn');
+  const status = document.getElementById('voice-status');
+  const textarea = document.getElementById('rp-answer');
+
+  recognition.onstart = () => {
+    isRecording = true;
+    btn.className = 'rp-mic recording';
+    btn.textContent = 'Stop';
+    status.className = 'voice-status active';
+    status.textContent = '🎤 Listening...';
+  };
+
+  recognition.onresult = (event) => {
+    let interim = '';
+    let final = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const t = event.results[i][0].transcript;
+      if (event.results[i].isFinal) final += t;
+      else interim += t;
+    }
+    if (final) {
+      textarea.value = (textarea.value + ' ' + final).trim();
+      status.textContent = '✓ Recognized: "' + final.trim() + '"';
+      status.className = 'voice-status';
+    } else {
+      status.textContent = '...' + interim;
+    }
+  };
+
+  recognition.onerror = (event) => {
+    stopVoiceInput();
+    status.textContent = 'Error: ' + event.error + '. Try again.';
+    status.className = 'voice-status';
+  };
+
+  recognition.onend = () => {
+    stopVoiceInput();
+    if (document.getElementById('voice-status').textContent.startsWith('🎤')) {
+      document.getElementById('voice-status').textContent = 'Done. Check your text above.';
+    }
+  };
+
+  recognition.start();
+}
+
+function stopVoiceInput() {
+  isRecording = false;
+  const btn = document.getElementById('rp-mic-btn');
+  btn.className = 'rp-mic';
+  btn.textContent = '🎤 Speak';
+  if (recognition) {
+    try { recognition.stop(); } catch(e) {}
+    recognition = null;
+  }
+}
+
 window.submitRoleplay = async () => {
+  stopVoiceInput();
   const userAnswer = document.getElementById('rp-answer').value.trim(); if (!userAnswer) return;
   speechSynthesis.cancel(); const c = session[rpIndex];
   document.getElementById('rp-input-area').style.display = 'none'; document.getElementById('rp-btn-row').style.display = 'none';
@@ -709,7 +815,7 @@ window.submitRoleplay = async () => {
   }
   document.getElementById('rp-next-btn').style.display = 'block';
 };
-window.skipRoleplay = () => { speechSynthesis.cancel(); rpResults.push({ collocation: session[rpIndex].collocation, used: false }); nextRoleplay(); };
+window.skipRoleplay = () => { stopVoiceInput(); speechSynthesis.cancel(); rpResults.push({ collocation: session[rpIndex].collocation, used: false }); nextRoleplay(); };
 window.nextRoleplay = () => { speechSynthesis.cancel(); rpIndex++; if (rpIndex >= session.length) showResults(); else showRoleplay(); };
 
 async function showResults() {
