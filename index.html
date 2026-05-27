@@ -349,71 +349,9 @@ import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gsta
 import { getDatabase, ref, get, set, update } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
 // ===== DATA =====
-const ALL_DATA=[
-  {id:"a1_001",collocation:"make a plan",type:"V + N",similar:["make a schedule","make an arrangement"],opposite:"cancel a plan",example1:"Let's make a plan for the weekend trip.",example2:"Before we start anything, the first thing we should do is _____ so everyone knows what they need to do and when.",answer:"make a plan",explanation:"Use 'make' here — not 'do' or 'have'. Common in daily and work contexts.",scene:0,frequency:0,cefr:1.0},
-  {id:"a1_002",collocation:"make a mistake",type:"V + N",similar:["make an error","get something wrong"],opposite:"get it right",example1:"Everyone makes a mistake sometimes — don't worry.",example2:"It is completely normal to _____ when you are learning something new — the important thing is to learn from it.",answer:"make a mistake",explanation:"Always use 'make' — never 'do a mistake'. Similar: make an error.",scene:0,frequency:0,cefr:1.0},
-  {id:"a1_003",collocation:"make a call",type:"V + N",similar:["make a phone call","give someone a call"],opposite:"receive a call",example1:"I need to make a call before the meeting starts.",example2:"While you were in the meeting, your client tried to reach you, so please _____ as soon as you get a chance.",answer:"make a call",explanation:"Use 'make' — not 'do a call'. Opposite: receive a call.",scene:0,frequency:0,cefr:1.0},
-  {id:"a1_004",collocation:"take a break",type:"V + N",similar:["have a rest","take a rest"],opposite:"keep working",example1:"You have been working for three hours — let's take a break.",example2:"We have been sitting in front of our screens for three hours straight, so let's _____ and get some fresh air.",answer:"take a break",explanation:"Use 'take' — not 'make a break'. Opposite: keep working.",scene:0,frequency:0,cefr:1.0},
-  {id:"a1_005",collocation:"take a seat",type:"V + N",similar:["have a seat","sit down"],opposite:"stand up",example1:"Please take a seat — the manager will be with you shortly.",example2:"When you arrive for the interview, please go to the reception desk and the staff will ask you to _____ in the waiting area.",answer:"take a seat",explanation:"Slightly more formal than 'sit down'. Common in office contexts.",scene:0,frequency:0,cefr:1.0},
-  {id:"a1_006",collocation:"take notes",type:"V + N",similar:["write things down","jot things down"],opposite:"ignore",example1:"Please take notes during the presentation.",example2:"During the training session tomorrow, please make sure to _____ because there will be a lot of important information covered.",answer:"take notes",explanation:"Use 'take notes' — most natural in study and work settings.",scene:0,frequency:0,cefr:1.0},
-  {id:"a1_007",collocation:"have a meeting",type:"V + N",similar:["hold a meeting","attend a meeting"],opposite:"cancel a meeting",example1:"We are going to have a meeting at 10 a.m. tomorrow.",example2:"The project is falling behind schedule, so I think we need to _____ with the whole team as soon as possible to discuss next steps.",answer:"have a meeting",explanation:"Similar: hold a meeting (more formal). Opposite: cancel a meeting.",scene:1,frequency:0,cefr:1.0},
-  {id:"a1_008",collocation:"have lunch",type:"V + N",similar:["eat lunch","grab lunch"],opposite:"skip lunch",example1:"Do you want to have lunch together today?",example2:"I noticed you were still at your desk at 2 p.m. — did you get a chance to _____ or were you too busy?",answer:"have lunch",explanation:"'Have' is the most natural verb here. Similar: eat lunch, grab lunch (informal).",scene:0,frequency:0,cefr:1.0},
-  {id:"a1_009",collocation:"have a problem",type:"V + N",similar:["face a problem","run into a problem"],opposite:"solve a problem",example1:"I have a problem with my computer — it won't start.",example2:"If you _____ accessing the shared folder, please contact IT support right away and they will fix it for you.",answer:"have a problem",explanation:"Similar: face a problem. Opposite: solve a problem.",scene:0,frequency:0,cefr:1.0},
-  {id:"a1_010",collocation:"ask a question",type:"V + N",similar:["raise a question","pose a question"],opposite:"answer a question",example1:"Please feel free to ask a question at any time.",example2:"Feel free to _____ at any point during the presentation — we want to make sure everyone understands before we move on.",answer:"ask a question",explanation:"Always 'ask a question' — not 'make a question'. Opposite: answer a question.",scene:0,frequency:0,cefr:1.0},
-  {id:"a1_011",collocation:"answer a question",type:"V + N",similar:["respond to a question","reply to a question"],opposite:"ask a question",example1:"She was able to answer every question in the interview.",example2:"The client sent us an email with some concerns about the timeline, and I was wondering if you could _____ before the end of the day.",answer:"answer a question",explanation:"Direct opposite: ask a question. Similar: respond to a question.",scene:0,frequency:0,cefr:1.0},
-  {id:"a1_012",collocation:"send a message",type:"V + N",similar:["send an email","drop someone a message"],opposite:"receive a message",example1:"I will send a message to the client after the call.",example2:"After we finish the call with the client this afternoon, I will _____ right away to confirm everything we discussed.",answer:"send a message",explanation:"Similar: send an email. Opposite: receive a message.",scene:0,frequency:0,cefr:1.0},
-  {id:"a1_013",collocation:"good idea",type:"Adj + N",similar:["great idea","useful idea"],opposite:"bad idea",example1:"That's a good idea — let's try it.",example2:"Having everyone work from home on Fridays sounds like a _____ — it could improve productivity and team morale at the same time.",answer:"good idea",explanation:"Often used to agree with someone's suggestion. Opposite: bad idea.",scene:0,frequency:0,cefr:1.0},
-  {id:"a1_014",collocation:"bad idea",type:"Adj + N",similar:["poor idea","terrible idea"],opposite:"good idea",example1:"Sending that email now might be a bad idea.",example2:"Changing the entire system just one week before the launch deadline sounds like a _____, especially without proper testing.",answer:"bad idea",explanation:"Opposite: good idea. Often softened with 'might be' in polite conversation.",scene:0,frequency:0,cefr:1.0},
-  {id:"a1_015",collocation:"free time",type:"N + N",similar:["spare time","leisure time"],opposite:"work time",example1:"I like reading books in my free time.",example2:"One of the best ways to avoid burnout is to make sure you actually use your _____ to rest and do things you enjoy.",answer:"free time",explanation:"Similar: spare time, leisure time. Opposite: work time.",scene:2,frequency:0,cefr:1.0},
-  {id:"a1_016",collocation:"hard work",type:"Adj + N",similar:["great effort","a lot of effort"],opposite:"easy work",example1:"The project was a success thanks to everyone's hard work.",example2:"The reason this project succeeded is entirely because of the team's _____ over the past three months — everyone gave their best.",answer:"hard work",explanation:"Often used to praise someone. Note: 'hard work' is uncountable — no article needed.",scene:0,frequency:0,cefr:1.0},
-  {id:"a1_017",collocation:"long meeting",type:"Adj + N",similar:["lengthy meeting","extended meeting"],opposite:"short meeting",example1:"We had a long meeting this morning and I am very tired.",example2:"We just got out of a _____ that went on for almost four hours, and everyone is exhausted and ready to go home.",answer:"long meeting",explanation:"Opposite: short meeting. Often used to express tiredness politely.",scene:1,frequency:1,cefr:1.0},
-  {id:"a1_018",collocation:"short break",type:"Adj + N",similar:["quick break","brief rest"],opposite:"long break",example1:"Let's have a short break before we continue.",example2:"We've been reviewing documents for two hours, so let's take a _____ before we continue with the second half of the agenda.",answer:"short break",explanation:"Similar: quick break. Opposite: long break.",scene:0,frequency:0,cefr:1.0},
-  {id:"a1_019",collocation:"new job",type:"Adj + N",similar:["new position","new role"],opposite:"old job",example1:"How is your new job going so far?",example2:"She has been much happier and more motivated ever since she started her _____ at the tech company downtown.",answer:"new job",explanation:"Similar: new role, new position. Opposite: old job, previous job.",scene:0,frequency:0,cefr:1.0},
-  {id:"a1_020",collocation:"busy day",type:"Adj + N",similar:["hectic day","full day"],opposite:"quiet day",example1:"It has been a busy day — I haven't had time to eat.",example2:"I apologize for not responding to your message earlier — it has been an incredibly _____ and I barely had time to check my phone.",answer:"busy day",explanation:"Similar: hectic day (stronger). Opposite: quiet day.",scene:0,frequency:0,cefr:1.0},
-  {id:"a1_021",collocation:"work hard",type:"V + Adv",similar:["try hard","put in effort"],opposite:"slack off",example1:"She always works hard to meet her targets.",example2:"If you want to meet the Friday deadline, you are going to need to _____ for the rest of the week and stay focused.",answer:"work hard",explanation:"Note: 'work hard' not 'work hardly' — 'hardly' means almost not at all.",scene:0,frequency:0,cefr:1.0},
-  {id:"a1_022",collocation:"speak clearly",type:"V + Adv",similar:["speak slowly","express yourself well"],opposite:"mumble",example1:"Please speak clearly so everyone in the room can hear you.",example2:"When you present to senior management, remember to _____ and pause between key points so your message comes across well.",answer:"speak clearly",explanation:"Similar: speak slowly (focuses on pace). Opposite: mumble.",scene:0,frequency:0,cefr:1.0},
-  {id:"a1_023",collocation:"speak slowly",type:"V + Adv",similar:["speak clearly","take your time"],opposite:"speak quickly",example1:"Could you speak slowly? I want to make sure I understand.",example2:"Our new international colleague is still getting used to English, so please _____ and avoid using too much slang or jargon.",answer:"speak slowly",explanation:"Similar: speak clearly (focuses on pronunciation). Opposite: speak quickly.",scene:0,frequency:0,cefr:1.0},
-  {id:"a1_024",collocation:"arrive early",type:"V + Adv",similar:["come early","get there ahead of time"],opposite:"arrive late",example1:"I always try to arrive early for meetings.",example2:"For your first day at the new office, I would strongly recommend that you _____ so you have time to settle in before the briefing.",answer:"arrive early",explanation:"Opposite: arrive late. Arriving early is often considered professional.",scene:0,frequency:0,cefr:1.0},
-  {id:"a1_025",collocation:"work time",type:"N + N",similar:["working hours","business hours"],opposite:"break time",example1:"Please keep personal calls short during work time.",example2:"Please remember that checking social media and making personal calls should be kept to a minimum during _____.",answer:"work time",explanation:"Similar: working hours, business hours. Opposite: break time, free time.",scene:1,frequency:1,cefr:1.0},
-  {id:"a1_026",collocation:"break time",type:"N + N",similar:["rest period","downtime"],opposite:"work time",example1:"We can talk more about this at break time.",example2:"I have something I would like to discuss with you about the upcoming schedule — can we talk during _____?",answer:"break time",explanation:"Opposite: work time. Similar: rest period.",scene:0,frequency:0,cefr:1.0},
-  {id:"a1_027",collocation:"team member",type:"N + N",similar:["colleague","staff member"],opposite:"team leader",example1:"Every team member is responsible for their own tasks.",example2:"I want to introduce everyone — Sarah is the project manager, Tom handles logistics, and every _____ has a specific area of responsibility.",answer:"team member",explanation:"Similar: colleague. Contrast with: team leader (the person in charge).",scene:1,frequency:0,cefr:1.0},
-  {id:"a1_028",collocation:"team leader",type:"N + N",similar:["group leader","supervisor"],opposite:"team member",example1:"The team leader will explain the goals at the start of the meeting.",example2:"If you have questions about the direction of the project or need approvals, your first point of contact should always be the _____.",answer:"team leader",explanation:"Similar: supervisor, group leader. Opposite: team member.",scene:1,frequency:0,cefr:1.0},
-  {id:"a1_029",collocation:"office work",type:"N + N",similar:["desk work","administrative work"],opposite:"fieldwork",example1:"Most of my office work involves writing reports and emails.",example2:"I prefer _____ to fieldwork because I find it easier to stay organized and communicate with my colleagues when we are all in the same place.",answer:"office work",explanation:"Describes work done in an office. Opposite: fieldwork. Similar: desk work.",scene:1,frequency:1,cefr:1.0},
-  {id:"a1_030",collocation:"phone call",type:"N + N",similar:["call","video call"],opposite:"",example1:"I missed an important phone call while I was in the meeting.",example2:"Would it be possible to schedule a _____ sometime tomorrow morning so we can go over the contract details before the deadline?",answer:"phone call",explanation:"Similar: video call (with visuals), call (shorter form).",scene:0,frequency:0,cefr:1.0}
-];
+// ALL_DATA: loaded from Firebase
 
-const RP_QUESTIONS={
-  "a1_001":{q:"Before we start the new project, what should we do first?",scene:"You and your manager are discussing the next project steps."},
-  "a1_002":{q:"I noticed something seems off in the report. What happened?",scene:"Your manager calls you in to discuss the document you submitted."},
-  "a1_003":{q:"You stepped out for a moment. Is everything okay?",scene:"Your manager notices you left the desk briefly."},
-  "a1_004":{q:"You've been working for hours. How are you doing?",scene:"Your manager stops by your desk after a long afternoon."},
-  "a1_005":{q:"Our client just arrived for the meeting. What should we do?",scene:"You are greeting a client at the office reception."},
-  "a1_006":{q:"The director is about to present the strategy. Are you ready?",scene:"You are about to attend an important presentation."},
-  "a1_007":{q:"We need to talk about the project schedule. When can we get together?",scene:"Your manager wants to discuss the project timeline."},
-  "a1_008":{q:"It's noon already. What are your plans?",scene:"A colleague checks in with you at midday."},
-  "a1_009":{q:"You look worried. Is something going on with the project?",scene:"Your manager notices you seem stressed."},
-  "a1_010":{q:"We just finished the presentation. Anything you'd like to clarify?",scene:"You are in a team meeting after a presentation."},
-  "a1_011":{q:"A client wrote in with a question about our delivery. Can you handle it?",scene:"Your manager asks you to respond to a client inquiry."},
-  "a1_012":{q:"How are you planning to follow up with the client after our call?",scene:"You are wrapping up a call with a client."},
-  "a1_013":{q:"We need to find a way to speed up the process. Any thoughts?",scene:"Your team is brainstorming solutions to a workflow problem."},
-  "a1_014":{q:"Someone suggested we launch the product next week. What do you think?",scene:"Your team is discussing a rushed product launch."},
-  "a1_015":{q:"What do you like to do when you are not working?",scene:"A colleague asks about your life outside of work."},
-  "a1_016":{q:"The project was a great success. What made the difference?",scene:"Your manager is reviewing the completed project."},
-  "a1_017":{q:"You look exhausted. What happened this morning?",scene:"A colleague notices you are tired after the morning session."},
-  "a1_018":{q:"We've been at this for two hours. What should we do next?",scene:"You are in the middle of a long working session."},
-  "a1_019":{q:"I heard you made a big change recently. How is it going?",scene:"A colleague asks about your recent career move."},
-  "a1_020":{q:"I called earlier but you didn't pick up. Everything okay?",scene:"A colleague checks in after a missed call."},
-  "a1_021":{q:"This week is going to be tough. What's your mindset?",scene:"Your manager is checking in before a demanding week."},
-  "a1_022":{q:"Your presentation was good but some people looked confused. Any thoughts?",scene:"Your manager gives feedback after your team presentation."},
-  "a1_023":{q:"We have an international colleague joining today. Any advice?",scene:"Your team is preparing to welcome a new international member."},
-  "a1_024":{q:"Tomorrow is your first day on the new project. Any plans?",scene:"Your manager asks about your preparation for tomorrow."},
-  "a1_025":{q:"I noticed people checking their phones a lot today. Is that a concern?",scene:"Your manager raises an issue about focus during working hours."},
-  "a1_026":{q:"When would be a good time to talk about something non-urgent?",scene:"A colleague wants to chat about something casually."},
-  "a1_027":{q:"Can you introduce the people working on this project?",scene:"A visitor asks about your project team."},
-  "a1_028":{q:"Who should I contact if I have questions about the project?",scene:"A new staff member is asking about the team structure."},
-  "a1_029":{q:"What does your typical day look like?",scene:"Someone asks you to describe your daily routine."},
-  "a1_030":{q:"How do you prefer to communicate with clients?",scene:"Your manager asks about your client communication style."}
-};
+// RP_QUESTIONS: loaded from Firebase (chunk.rp_question)
 
 // ===== FIREBASE =====
 let db, auth, uid;
@@ -445,6 +383,7 @@ async function initFirebase() {
     });
     document.getElementById('loading-status').textContent = 'Loading data...';
     await loadFromFirebase();
+    await loadChunks('A1');
     document.getElementById('uid-display').textContent = `UID: ${uid}`;
     document.getElementById('loading-screen').style.display = 'none';
     updateHome();
@@ -559,8 +498,32 @@ function selectSession() {
   const overflow = due.slice(MAX_SESSION);
   overflow.forEach(c => { const s = srsCache[c.id] || {}; s.nextReview = addDaysToInt(today, 1); srsCache[c.id] = s; });
   const remaining = sessionSizeMax - toReview.length;
-  const newItems = ALL_DATA.filter(c => !srsCache[c.id] || srsCache[c.id].level === 0 && srsCache[c.id].nextReview === 0).sort((a, b) => a.frequency - b.frequency).slice(0, remaining);
+  const newItems = ALL_DATA.filter(c => !srsCache[c.id] || srsCache[c.id].level === 0 && srsCache[c.id].nextReview === 0).slice(0, remaining);
   return { review: toReview, newItems, overflow: overflow.length };
+}
+
+// ===== チャンクデータ =====
+let ALL_DATA = [];
+let chunksMap = {};
+
+async function loadChunks(level = 'A1') {
+  try {
+    showSyncIndicator('syncing', 'Loading chunks...');
+    const snap = await get(ref(db, 'chunks'));
+    if (!snap.exists()) { console.warn('No chunks found'); return; }
+    const all = snap.val();
+    ALL_DATA = Object.values(all).filter(c => c.level === level);
+    chunksMap = all;
+    showSyncIndicator('synced');
+    console.log(`Loaded ${ALL_DATA.length} chunks (${level})`);
+  } catch(e) {
+    console.error('loadChunks error:', e);
+    showSyncIndicator('synced');
+  }
+}
+
+function getChunkById(id) {
+  return chunksMap[id] || null;
 }
 
 // ===== SPEECH =====
@@ -593,7 +556,7 @@ function renderSRSStatus() {
     const s = srsCache[c.id] || { level: 0, nextReview: 0 };
     const isDue = s.nextReview > 0 && s.nextReview <= today;
     const dueText = s.nextReview === 0 ? 'New' : isDue ? '⚡Due' : 'D' + String(s.nextReview).slice(6);
-    return `<div class="srs-item"><span class="srs-col">${c.collocation}</span><span class="srs-level" style="color:${colors[s.level]}">Lv${s.level}</span><span class="srs-next">${dueText}</span><div class="srs-btn-group"><button class="btn-force-correct" onclick="forceCorrect('${c.id}')">✓</button><button class="btn-force-incorrect" onclick="forceIncorrect('${c.id}')">✗</button></div></div>`;
+    return `<div class="srs-item"><span class="srs-col">${c.chunk}</span><span class="srs-level" style="color:${colors[s.level]}">Lv${s.level}</span><span class="srs-next">${dueText}</span><div class="srs-btn-group"><button class="btn-force-correct" onclick="forceCorrect('${c.id}')">✓</button><button class="btn-force-incorrect" onclick="forceIncorrect('${c.id}')">✗</button></div></div>`;
   }).join('');
 }
 
@@ -640,7 +603,7 @@ function updateHome() {
   document.getElementById('start-btn').disabled = session.length === 0;
   document.getElementById('start-btn').textContent = session.length === 0 ? 'No items today ✓' : 'Start Learning →';
   const today = todayInt();
-  document.getElementById('preview-tags').innerHTML = session.map(c => { const isReview = srsCache[c.id] && srsCache[c.id].nextReview > 0 && srsCache[c.id].nextReview <= today; return `<span class="preview-tag ${isReview ? 'review-tag' : ''}">${c.collocation}</span>`; }).join('');
+  document.getElementById('preview-tags').innerHTML = session.map(c => { const isReview = srsCache[c.id] && srsCache[c.id].nextReview > 0 && srsCache[c.id].nextReview <= today; return `<span class="preview-tag ${isReview ? 'review-tag' : ''}">${c.chunk}</span>`; }).join('');
   renderStreakDots(); renderSRSStatus();
 }
 
@@ -662,12 +625,12 @@ window.startSession = () => { if (session.length === 0) return; inputIndex = 0; 
 
 function showInput() {
   const c = session[inputIndex]; const meta = sessionMeta[inputIndex];
-  currentCollocation = c.collocation; currentExample = c.example1;
+  currentCollocation = c.chunk; currentExample = c.example1;
   document.getElementById('input-progress').style.width = `${(inputIndex / session.length) * 100}%`;
   document.getElementById('input-counter').textContent = `${inputIndex + 1} / ${session.length}`;
-  document.getElementById('col-main').textContent = c.collocation;
+  document.getElementById('col-main').textContent = c.chunk;
   document.getElementById('col-type').textContent = c.type;
-  document.getElementById('col-example').innerHTML = c.example1.replace(c.collocation, `<mark>${c.collocation}</mark>`);
+  document.getElementById('col-example').innerHTML = c.example1.replace(c.chunk, `<mark>${c.chunk}</mark>`);
   document.getElementById('col-explanation').textContent = c.explanation;
   let tags = c.similar.map(s => `<span class="similar-tag">${s}</span>`).join('');
   if (c.opposite) tags += `<span class="opposite-tag">↔ ${c.opposite}</span>`;
@@ -677,7 +640,7 @@ function showInput() {
   badge.className = meta && meta.isReview ? 'phase-badge' : 'phase-badge new-badge';
   document.getElementById('btn-audio-col').classList.remove('playing');
   document.getElementById('btn-audio-ex').classList.remove('playing');
-  setTimeout(() => speak(c.collocation, 0.8), 400);
+  setTimeout(() => speak(c.chunk, 0.8), 400);
 }
 
 window.nextInput = (action) => { speechSynthesis.cancel(); if (action === 'return') { showInput(); return; } inputIndex++; if (inputIndex >= session.length) { outputIndex = 0; showScreen('output'); showOutput(); } else showInput(); };
@@ -685,21 +648,22 @@ window.nextInput = (action) => { speechSynthesis.cancel(); if (action === 'retur
 function makeChoices(correct) {
   const c = session[outputIndex];
   const correctLower = correct.toLowerCase();
-  // 正解と類似・同義語を除外した選択肢プール
-  const excluded = new Set([
-    correctLower,
-    ...(c.similar || []).map(s => s.toLowerCase()),
-  ]);
+  // 正解と類似語を除外
+  const similarChunks = (c.similar || []).map(id => {
+    const sc = getChunkById(id);
+    return sc ? sc.chunk.toLowerCase() : '';
+  }).filter(Boolean);
+  const excluded = new Set([correctLower, ...similarChunks]);
   // 同タイプ優先で重複なしプール生成
   const sameType = ALL_DATA.filter(d => {
-    const al = d.answer.toLowerCase();
+    const al = d.chunk.toLowerCase();
     return !excluded.has(al) && d.type === c.type;
   });
   const otherType = ALL_DATA.filter(d => {
-    const al = d.answer.toLowerCase();
+    const al = d.chunk.toLowerCase();
     return !excluded.has(al) && d.type !== c.type;
   });
-  const pool = [...new Set([...sameType, ...otherType].map(d => d.answer))];
+  const pool = [...new Set([...sameType, ...otherType].map(d => d.chunk))];
   const distractors = pool.sort(() => Math.random() - 0.5).slice(0, 3);
   return [...distractors, correct].sort(() => Math.random() - 0.5);
 }
@@ -711,14 +675,14 @@ function showOutput() {
   document.getElementById('blank-sentence').innerHTML = c.example2.replace('_____', `<span class="blank">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>`);
   document.getElementById('feedback-box').className = 'feedback-box';
   document.getElementById('next-btn').style.display = 'none'; document.getElementById('score-pop').textContent = '';
-  const choices = makeChoices(c.answer);
+  const choices = makeChoices(c.chunk);
   document.getElementById('choices-grid').innerHTML = choices.map(ch => `<button class="choice-btn" onclick="selectChoice(this,'${ch.replace(/'/g, "\\'")}')"><span>${ch}</span></button>`).join('');
   startTimer();
 }
 
 window.selectChoice = async (btn, chosen) => {
   if (answered) return; answered = true; clearInterval(timerInterval);
-  const c = session[outputIndex]; const correct = c.answer;
+  const c = session[outputIndex]; const correct = c.chunk;
   const elapsed = Date.now() - questionStartTime; const remainMs = Math.max(0, 15000 - elapsed);
   const isCorrect = chosen === correct;
   document.querySelectorAll('.choice-btn').forEach(b => { b.disabled = true; const l = b.querySelector('span').textContent; if (l === correct) b.classList.add('correct'); else if (l === chosen && !isCorrect) b.classList.add('wrong'); });
@@ -727,7 +691,7 @@ window.selectChoice = async (btn, chosen) => {
   const fb = document.getElementById('feedback-box');
   if (isCorrect) { fb.className = 'feedback-box correct'; fb.textContent = `✓ Correct! +${qScore.toFixed(2)}pt  Lv${srs.level}→${newSRS.level}`; document.getElementById('score-pop').textContent = `+${qScore.toFixed(2)}pt`; }
   else { fb.className = 'feedback-box wrong'; fb.textContent = `✗ "${correct}"  Lv${srs.level}→${newSRS.level}`; document.getElementById('score-pop').textContent = '+0pt'; }
-  speakFeedback(correct); results.push({ collocation: c.collocation, correct: isCorrect, score: qScore, remainMs, srs });
+  speakFeedback(correct); results.push({ collocation: c.chunk, correct: isCorrect, score: qScore, remainMs, srs });
   document.getElementById('next-btn').style.display = 'block';
 };
 
@@ -735,30 +699,31 @@ function startTimer() { clearInterval(timerInterval); timeLeft = 15; updateTimer
 function updateTimer() { const d = document.getElementById('timer-display'); d.textContent = Math.ceil(timeLeft); d.className = timeLeft <= 2 ? 'timer-circle warning' : 'timer-circle'; }
 async function timeUp() {
   answered = true; const c = session[outputIndex];
-  document.querySelectorAll('.choice-btn').forEach(b => { b.disabled = true; if (b.querySelector('span').textContent === c.answer) b.classList.add('correct'); });
+  document.querySelectorAll('.choice-btn').forEach(b => { b.disabled = true; if (b.querySelector('span').textContent === c.chunk) b.classList.add('correct'); });
   await updateSRS(c.id, false);
   document.getElementById('feedback-box').className = 'feedback-box wrong';
-  document.getElementById('feedback-box').textContent = `⏱ Time's up! "${c.answer}"`;
-  document.getElementById('score-pop').textContent = '+0pt'; speakFeedback(c.answer);
-  results.push({ collocation: c.collocation, correct: false, score: 0, remainMs: 0, srs: getSRS(c.id) });
+  document.getElementById('feedback-box').textContent = `⏱ Time's up! "${c.chunk}"`;
+  document.getElementById('score-pop').textContent = '+0pt'; speakFeedback(c.chunk);
+  results.push({ collocation: c.chunk, correct: false, score: 0, remainMs: 0, srs: getSRS(c.id) });
   document.getElementById('next-btn').style.display = 'block';
 }
 window.nextOutput = () => { speechSynthesis.cancel(); outputIndex++; if (outputIndex >= session.length) { rpIndex = 0; rpResults = []; showScreen('roleplay'); showRoleplay(); } else showOutput(); };
 
 function showRoleplay() {
-  const c = session[rpIndex]; const rp = RP_QUESTIONS[c.id];
+  const c = session[rpIndex];
+  const rpQuestion = c.rp_question;
+  if (!rpQuestion) { nextRoleplay(); return; }
   document.getElementById('rp-progress').style.width = `${(rpIndex / session.length) * 100}%`;
   document.getElementById('rp-counter').textContent = `${rpIndex + 1} / ${session.length}`;
-  document.getElementById('rp-scene').textContent = rp.scene;
   const conv = document.getElementById('rp-conversation');
-  conv.innerHTML = `<div class="rp-bubble-wrap"><div class="rp-speaker">Manager</div><div class="rp-bubble manager">"${rp.q}"</div></div>`;
+  conv.innerHTML = `<div class="rp-bubble-wrap"><div class="rp-speaker">Manager</div><div class="rp-bubble manager">"${rpQuestion}"</div></div>`;
   document.getElementById('rp-answer').value = '';
   document.getElementById('rp-input-area').style.display = 'block'; document.getElementById('rp-btn-row').style.display = 'grid';
   document.getElementById('rp-next-btn').style.display = 'none'; document.getElementById('rp-loading').className = 'rp-loading';
   document.getElementById('voice-status').textContent = '';
   document.getElementById('voice-status').className = 'voice-status';
   stopVoiceInput();
-  setTimeout(() => speak(rp.q, 0.85), 400);
+  setTimeout(() => speak(rpQuestion, 0.85), 400);
 }
 // ===== 音声入力 =====
 let recognition = null;
@@ -857,34 +822,35 @@ window.submitRoleplay = async () => {
   conv.insertAdjacentHTML('beforeend', `<div class="rp-bubble-wrap"><div class="rp-speaker">You</div><div class="rp-bubble user">"${userAnswer}"</div></div>`);
   document.getElementById('rp-loading').className = 'rp-loading show';
   try {
+    const rpQ = c.rp_question;
     const prompt = `You are a professional and supportive workplace manager having a brief English conversation.
 
-The collocation the user is practicing: "${c.collocation}"
+The collocation the user is practicing: "${c.chunk}"
 The user said: "${userAnswer}"
 
 Instructions:
 1. First, silently judge which case applies:
-   - CASE A: The user correctly used "${c.collocation}" or a natural equivalent.
-   - CASE B: The user's response is natural and relevant, but did not use "${c.collocation}".
+   - CASE A: The user correctly used "${c.chunk}" or a natural equivalent.
+   - CASE B: The user's response is natural and relevant, but did not use "${c.chunk}".
    - CASE C: The user's response is unnatural, unclear, or off-topic.
 
 2. Then reply in exactly 1-2 sentences:
    - CASE A: Praise the user naturally (e.g. "Great!" or "Exactly!"), then continue the conversation naturally.
-   - CASE B: Give a natural reply that includes "${c.collocation}" to model the expected expression, without saying "you should say" or "the correct phrase is".
-   - CASE C: Respond with a sentence that naturally includes "${c.collocation}" and gently redirects the conversation.
+   - CASE B: Give a natural reply that includes "${c.chunk}" to model the expected expression, without saying "you should say" or "the correct phrase is".
+   - CASE C: Respond with a sentence that naturally includes "${c.chunk}" and gently redirects the conversation.
 
 3. Always sound like a real manager — warm, professional, and brief. Never break character or explain grammar.`;
     const response = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 200, messages: [{ role: "user", content: prompt }] }) });
     const data = await response.json(); const reply = data.content?.[0]?.text || "Good effort!";
     document.getElementById('rp-loading').className = 'rp-loading';
-    const highlighted = reply.replace(new RegExp(c.collocation.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), match => `<mark class="rp-highlight">${match}</mark>`);
+    const highlighted = reply.replace(new RegExp(c.chunk.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), match => `<mark class="rp-highlight">${match}</mark>`);
     conv.insertAdjacentHTML('beforeend', `<div class="rp-bubble-wrap"><div class="rp-speaker">Manager</div><div class="rp-bubble reply">"${highlighted}"</div></div>`);
-    rpResults.push({ collocation: c.collocation, used: true }); setTimeout(() => speak(reply, 0.85), 300);
+    rpResults.push({ collocation: c.chunk, used: true }); setTimeout(() => speak(reply, 0.85), 300);
   } catch (e) {
     document.getElementById('rp-loading').className = 'rp-loading';
-    const mock = `Good response! Keep practicing "${c.collocation}" naturally.`;
+    const mock = `Good response! Keep practicing "${c.chunk}" naturally.`;
     conv.insertAdjacentHTML('beforeend', `<div class="rp-bubble-wrap"><div class="rp-speaker">Manager</div><div class="rp-bubble reply">"${mock}"</div></div>`);
-    rpResults.push({ collocation: c.collocation, used: true }); setTimeout(() => speak(mock, 0.85), 300);
+    rpResults.push({ collocation: c.chunk, used: true }); setTimeout(() => speak(mock, 0.85), 300);
   }
   document.getElementById('rp-next-btn').style.display = 'block';
 };
@@ -915,7 +881,7 @@ async function showResults() {
   document.getElementById('b-total').textContent = total.toFixed(2) + 'pt';
   document.getElementById('result-list-body').innerHTML = results.map(r => `
     <div class="result-item">
-      <div class="result-left"><div class="result-collocation">${r.collocation}</div><div class="result-phase">Output · ${r.remainMs > 0 ? (r.remainMs / 1000).toFixed(1) + 's' : '-'}</div></div>
+      <div class="result-left"><div class="result-collocation">${r.chunk}</div><div class="result-phase">Output · ${r.remainMs > 0 ? (r.remainMs / 1000).toFixed(1) + 's' : '-'}</div></div>
       <span class="result-score-col">${r.correct ? '+' + r.score.toFixed(2) + 'pt' : '+0pt'}</span>
       <span class="${r.correct ? 'result-ok' : 'result-ng'}">${r.correct ? '✓' : '✗'}</span>
     </div>`).join('');
