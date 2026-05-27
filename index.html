@@ -508,17 +508,14 @@ let chunksMap = {};
 
 async function loadChunks(level = 'A1') {
   try {
-    showSyncIndicator('syncing', 'Loading chunks...');
     const snap = await get(ref(db, 'chunks'));
     if (!snap.exists()) { console.warn('No chunks found'); return; }
     const all = snap.val();
     ALL_DATA = Object.values(all).filter(c => c.level === level);
     chunksMap = all;
-    showSyncIndicator('synced');
-    console.log(`Loaded ${ALL_DATA.length} chunks (${level})`);
+    console.log('Loaded', ALL_DATA.length, 'chunks (' + level + ')');
   } catch(e) {
     console.error('loadChunks error:', e);
-    showSyncIndicator('synced');
   }
 }
 
