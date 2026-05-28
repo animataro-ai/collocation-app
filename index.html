@@ -794,5 +794,18 @@ function showScreen(name) { document.querySelectorAll('.screen').forEach(s => s.
 // 起動
 initFirebase();
 </script>
+
+<!-- チャンクダイアログ -->
+<div class="chunk-dialog-overlay" id="chunk-dialog-overlay" style="display:none" onclick="window.closeChunkDialog(event)">
+  <div class="chunk-dialog">
+    <div class="chunk-dialog-chunk" id="dialog-chunk"></div>
+    <div class="chunk-dialog-level" id="dialog-level"></div>
+    <div class="chunk-dialog-meaning" id="dialog-meaning"></div>
+    <div class="chunk-dialog-explanation" id="dialog-explanation"></div>
+    <div class="chunk-dialog-example" id="dialog-example"></div>
+    <button class="chunk-dialog-close" onclick="document.getElementById('chunk-dialog-overlay').style.display='none'">Close ✕</button>
+  </div>
+</div>
+
 </body>
 </html>
