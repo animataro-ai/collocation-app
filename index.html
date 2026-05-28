@@ -181,6 +181,20 @@
   .session-complete-banner.show { display: block; }
   .session-complete-text { font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 800; color: var(--success); }
   .session-complete-sub { font-family: 'Nunito', sans-serif; font-size: 13px; color: var(--success); margin-top: 3px; }
+  /* チャンクダイアログ */
+  .chunk-dialog-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .chunk-dialog { background: var(--surface); border-radius: var(--radius); padding: 20px; max-width: 360px; width: 100%; box-shadow: 0 8px 32px rgba(0,0,0,0.18); }
+  .chunk-dialog-chunk { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 24px; color: var(--accent); margin-bottom: 6px; }
+  .chunk-dialog-level { font-family: 'Outfit', sans-serif; font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; }
+  .chunk-dialog-meaning { font-family: 'Nunito', sans-serif; font-size: 14px; color: var(--text); font-weight: 600; line-height: 1.7; margin-bottom: 10px; }
+  .chunk-dialog-explanation { font-family: 'Nunito', sans-serif; font-size: 13px; color: var(--text2); line-height: 1.7; margin-bottom: 14px; font-style: italic; }
+  .chunk-dialog-example { background: var(--surface2); border-radius: 8px; padding: 10px 12px; font-family: 'Nunito', sans-serif; font-size: 13px; color: var(--text); line-height: 1.7; margin-bottom: 14px; }
+  .chunk-dialog-close { width: 100%; padding: 11px; border-radius: var(--radius); border: 2px solid var(--border); background: var(--surface); color: var(--text2); font-family: 'Outfit', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; }
+  .chunk-dialog-close:hover { border-color: var(--accent); color: var(--accent); }
+  .similar-tag { cursor: pointer; transition: all 0.15s; }
+  .similar-tag:hover { background: #c0d8ef; }
+  .opposite-tag { cursor: pointer; transition: all 0.15s; }
+  .opposite-tag:hover { background: #f0c4bc; }
   .session-config { background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 12px; }
   .config-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; }
   .config-row + .config-row { border-top: 1px solid var(--border); margin-top: 8px; padding-top: 12px; }
@@ -604,6 +618,34 @@ function updateHome() {
   renderStreakDots(); renderSRSStatus();
 }
 
+function generateScene(c) {
+  // example1からシーン文脈を自動生成
+  const scenes = {
+    'A1': 'You are in a workplace conversation with your manager.',
+    'A2': 'You are having a professional discussion with a colleague.',
+    'B1': 'You are in a business meeting with your team.',
+    'B2': 'You are in a formal business context with stakeholders.',
+  };
+  return scenes[c.level] || 'You are having a conversation at work.';
+}
+
+window.showChunkDialog = (id) => {
+  const c = getChunkById(id);
+  if (!c) return;
+  document.getElementById('dialog-chunk').textContent = c.chunk;
+  document.getElementById('dialog-level').textContent = c.level + ' · ' + (c.category || 'collocation');
+  document.getElementById('dialog-meaning').textContent = c.meaning || '';
+  document.getElementById('dialog-explanation').textContent = c.explanation || '';
+  document.getElementById('dialog-example').textContent = c.example1 || '';
+  document.getElementById('chunk-dialog-overlay').style.display = 'flex';
+};
+
+window.closeChunkDialog = (e) => {
+  if (e.target.id === 'chunk-dialog-overlay') {
+    document.getElementById('chunk-dialog-overlay').style.display = 'none';
+  }
+};
+
 window.setSessionSize = (n) => {
   sessionSizeMax = n;
   document.querySelectorAll('.config-btn').forEach(b => b.classList.remove('active'));
@@ -629,8 +671,18 @@ function showInput() {
   document.getElementById('col-type').textContent = c.type;
   document.getElementById('col-example').innerHTML = c.example1.replace(c.chunk, `<mark>${c.chunk}</mark>`);
   document.getElementById('col-explanation').textContent = c.explanation;
-  let tags = c.similar.map(s => `<span class="similar-tag">${s}</span>`).join('');
-  if (c.opposite) tags += `<span class="opposite-tag">↔ ${c.opposite}</span>`;
+  // similar/oppositeをIDから取得してクリッカブルタグで表示
+  let tags = '';
+  if (c.similar && c.similar.length > 0) {
+    tags = c.similar.map(id => {
+      const sc = getChunkById(id);
+      return sc ? `<span class="similar-tag" onclick="showChunkDialog('${id}')">${sc.chunk}</span>` : '';
+    }).filter(Boolean).join('');
+  }
+  if (c.opposite) {
+    const oc = getChunkById(c.opposite);
+    if (oc) tags += `<span class="opposite-tag" onclick="showChunkDialog('${c.opposite}')">↔ ${oc.chunk}</span>`;
+  }
   document.getElementById('col-similar').innerHTML = tags;
   const badge = document.getElementById('input-type-badge');
   badge.textContent = meta && meta.isReview ? 'Review' : 'New';
@@ -640,7 +692,27 @@ function showInput() {
   setTimeout(() => speak(c.chunk, 0.8), 400);
 }
 
-window.nextInput = (action) => { speechSynthesis.cancel(); if (action === 'return') { showInput(); return; } inputIndex++; if (inputIndex >= session.length) { outputIndex = 0; showScreen('output'); showOutput(); } else showInput(); };
+window.nextInput = (action) => {
+  speechSynthesis.cancel();
+  if (action === 'return') { showInput(); return; }
+  if (action === 'known') {
+    // アウトプット・ロールプレイをスキップ・30日後に1回テスト
+    const c = session[inputIndex];
+    updateSRSLocal(c.id, true);
+    // levelを5（最高）にして30日後に設定
+    const m = srsCache;
+    const s = m[c.id] || {};
+    s.level = 5;
+    s.lastStudied = todayInt();
+    s.nextReview = addDaysToInt(todayInt(), 30);
+    srsCache[c.id] = s;
+    saveToFirebase('srs', srsCache);
+    results.push({ chunk: c.chunk, correct: true, score: 0, remainMs: 0, srs: s, skipped: true });
+  }
+  inputIndex++;
+  if (inputIndex >= session.length) { outputIndex = 0; showScreen('output'); showOutput(); }
+  else showInput();
+};
 
 function makeChoices(correct) {
   const c = session[outputIndex];
@@ -712,6 +784,9 @@ function showRoleplay() {
   if (!rpQuestion) { nextRoleplay(); return; }
   document.getElementById('rp-progress').style.width = `${(rpIndex / session.length) * 100}%`;
   document.getElementById('rp-counter').textContent = `${rpIndex + 1} / ${session.length}`;
+  // sceneをexample1から生成（rp_sceneフィールドがない場合）
+  const sceneText = c.rp_scene || generateScene(c);
+  document.getElementById('rp-scene').textContent = sceneText;
   const conv = document.getElementById('rp-conversation');
   conv.innerHTML = `<div class="rp-bubble-wrap"><div class="rp-speaker">Manager</div><div class="rp-bubble manager">"${rpQuestion}"</div></div>`;
   document.getElementById('rp-answer').value = '';
@@ -756,7 +831,6 @@ function startVoiceInput() {
   }
   const btn = document.getElementById('rp-mic-btn');
   const status = document.getElementById('voice-status');
-  const textarea = document.getElementById('rp-answer');
 
   recognition.onstart = () => {
     isRecording = true;
@@ -774,12 +848,19 @@ function startVoiceInput() {
       if (event.results[i].isFinal) final += t;
       else interim += t;
     }
+    const textarea = document.getElementById('rp-answer');
     if (final) {
-      textarea.value = (textarea.value + ' ' + final).trim();
-      status.textContent = '✓ Recognized: "' + final.trim() + '"';
+      // テキストエリアに追記（カーソル位置を末尾に）
+      const current = textarea.value;
+      textarea.value = (current + (current ? ' ' : '') + final.trim());
+      textarea.scrollTop = textarea.scrollHeight;
+      // カーソルを末尾に移動
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+      status.textContent = '✓ Added: "' + final.trim() + '"';
       status.className = 'voice-status';
-    } else {
+    } else if (interim) {
       status.textContent = '...' + interim;
+      status.className = 'voice-status active';
     }
   };
 
