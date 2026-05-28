@@ -178,6 +178,20 @@ async function loadFromFirebase() {
   try {
     const srsSnap = await get(ref(db, `users/${uid}/srs`));
     srsCache = srsSnap.exists() ? srsSnap.val() : {};
+
+    // マイグレーション: 旧levelフィールドを削除（n/efベースに統合）
+    let migrated = false;
+    for (const id in srsCache) {
+      if ('level' in srsCache[id]) {
+        delete srsCache[id].level;
+        migrated = true;
+      }
+    }
+    if (migrated) {
+      await set(ref(db, `users/${uid}/srs`), srsCache);
+      console.log('SRS migration: removed legacy "level" fields');
+    }
+
     const statsSnap = await get(ref(db, `users/${uid}/stats`));
     statsCache = statsSnap.exists() ? statsSnap.val() : {};
     // localStorageにも同期
@@ -251,12 +265,13 @@ function updateSRSLocal(id, correct) {
   if (correct) {
     s.n = Math.min(10, (s.n || 0) + 1);
     s.ef = Math.min(3.0, (s.ef || 2.5) + 0.1);
+    s.nextReview = addDaysToInt(today, getNextReviewDay(s.n, s.ef));
   } else {
-    s.n = Math.max(0, (s.n || 0) - 1);
-    s.ef = Math.max(1.3, (s.ef || 2.5) - 0.2);
+    // nはそのまま、ef-0.3、翌日強制復習
+    s.ef = Math.max(1.3, (s.ef || 2.5) - 0.3);
+    s.nextReview = addDaysToInt(today, 1);
   }
   s.lastStudied = today;
-  s.nextReview = addDaysToInt(today, getNextReviewDay(s.n, s.ef));
   srsCache[id] = s;
 }
 
@@ -360,9 +375,9 @@ function speakFeedback(t) { setTimeout(() => speak(t, 0.85), 300); }
 
 // ===== 係数 =====
 function freqCoef(f) { return [1.0, 1.5, 2.0, 3.0][f] || 1.0; }
-function levelCoef(l) { if (l <= 1) return 1.0; if (l <= 3) return 2.0; if (l === 4) return 3.0; return 5.0; }
+function levelCoef(n) { if (n <= 1) return 1.0; if (n <= 3) return 2.0; if (n <= 5) return 3.0; return 5.0; }
 function cefrCoef(c) { if (c <= 1.0) return 1.0; if (c <= 1.5) return 1.5; if (c <= 2.0) return 2.0; return 3.0; }
-function calcScore(c, remainMs, level) { return remainMs * freqCoef(c.frequency) * levelCoef(level) * cefrCoef(c.cefr) / 1000; }
+function calcScore(c, remainMs, n) { return remainMs * freqCoef(c.frequency) * levelCoef(n) * cefrCoef(c.cefr) / 1000; }
 
 // ===== DEBUG =====
 function showToast(msg) { const t = document.getElementById('debug-toast'); t.textContent = msg; t.style.display = 'block'; setTimeout(() => { t.style.display = 'none'; }, 2000); }
@@ -372,12 +387,15 @@ window.forceIncorrect = async (id) => { updateSRSLocal(id, false); await saveToF
 
 function renderSRSStatus() {
   const today = todayInt();
-  const colors = ['#aaa', '#7ac4e8', '#7ae8a0', '#e8c97a', '#e87a7a', '#2d6a4f'];
+  const nColors = ['#aaa', '#7ac4e8', '#7ae8a0', '#e8c97a', '#e87a7a', '#2d6a4f'];
   document.getElementById('srs-status-list').innerHTML = ALL_DATA.map(c => {
-    const s = srsCache[c.id] || { level: 0, nextReview: 0 };
+    const s = srsCache[c.id] || { n: 0, ef: 2.5, nextReview: 0 };
     const isDue = s.nextReview > 0 && s.nextReview <= today;
     const dueText = s.nextReview === 0 ? 'New' : isDue ? '⚡Due' : 'D' + String(s.nextReview).slice(6);
-    return `<div class="srs-item"><span class="srs-col">${c.chunk}</span><span class="srs-level" style="color:${colors[s.level]}">Lv${s.level}</span><span class="srs-next">${dueText}</span><div class="srs-btn-group"><button class="btn-force-correct" onclick="forceCorrect('${c.id}')">✓</button><button class="btn-force-incorrect" onclick="forceIncorrect('${c.id}')">✗</button></div></div>`;
+    const nVal = s.n || 0;
+    const efVal = (s.ef || 2.5).toFixed(1);
+    const col = nColors[Math.min(nVal, nColors.length - 1)];
+    return `<div class="srs-item"><span class="srs-col">${c.chunk}</span><span class="srs-level" style="color:${col}">n${nVal}/ef${efVal}</span><span class="srs-next">${dueText}</span><div class="srs-btn-group"><button class="btn-force-correct" onclick="forceCorrect('${c.id}')">✓</button><button class="btn-force-incorrect" onclick="forceIncorrect('${c.id}')">✗</button></div></div>`;
   }).join('');
 }
 
@@ -598,11 +616,11 @@ window.selectChoice = async (btn, chosen) => {
   const elapsed = Date.now() - questionStartTime; const remainMs = Math.max(0, 15000 - elapsed);
   const isCorrect = chosen === correct;
   document.querySelectorAll('.choice-btn').forEach(b => { b.disabled = true; const l = b.querySelector('span').textContent; if (l === correct) b.classList.add('correct'); else if (l === chosen && !isCorrect) b.classList.add('wrong'); });
-  const srs = getSRS(c.id); const qScore = isCorrect ? calcScore(c, remainMs, srs.level) : 0;
+  const srs = getSRS(c.id); const qScore = isCorrect ? calcScore(c, remainMs, srs.n || 0) : 0;
   await updateSRS(c.id, isCorrect); const newSRS = getSRS(c.id);
   const fb = document.getElementById('feedback-box');
-  if (isCorrect) { fb.className = 'feedback-box correct'; fb.textContent = `✓ Correct! +${qScore.toFixed(2)}pt  Lv${srs.level}→${newSRS.level}`; document.getElementById('score-pop').textContent = `+${qScore.toFixed(2)}pt`; }
-  else { fb.className = 'feedback-box wrong'; fb.textContent = `✗ "${correct}"  Lv${srs.level}→${newSRS.level}`; document.getElementById('score-pop').textContent = '+0pt'; }
+  if (isCorrect) { fb.className = 'feedback-box correct'; fb.textContent = `✓ Correct! +${qScore.toFixed(2)}pt  n:${srs.n||0}→${newSRS.n||0}`; document.getElementById('score-pop').textContent = `+${qScore.toFixed(2)}pt`; }
+  else { fb.className = 'feedback-box wrong'; fb.textContent = `✗ "${correct}"  n:${srs.n||0} ef:${(newSRS.ef||2.5).toFixed(1)} (review tomorrow)`; document.getElementById('score-pop').textContent = '+0pt'; }
   speakFeedback(correct); results.push({ collocation: c.chunk, correct: isCorrect, score: qScore, remainMs, srs });
   document.getElementById('next-btn').style.display = 'block';
 };
