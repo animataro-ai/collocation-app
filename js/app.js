@@ -212,7 +212,27 @@ async function saveToFirebase(path, data) {
   }
 }
 
-// ===== SRS =====
+// ===== SRS（定着率ベース） =====
+
+// 定着率計算: R = exp(-elapsed / I(n))
+function getInterval(n, ef = 2.5) {
+  if (n <= 0) return 1;
+  if (n === 1) return 6;
+  return 6 * Math.pow(ef, n - 1);
+}
+
+function getRetention(id) {
+  const s = srsCache[id];
+  if (!s || s.n === undefined) return null; // 未学習
+  const elapsed = Math.max(0, todayInt() - s.lastStudied);
+  const I = getInterval(s.n, s.ef || 2.5);
+  return Math.exp(-elapsed / I);
+}
+
+function getNextReviewDay(n, ef = 2.5, threshold = 0.8) {
+  const I = getInterval(n, ef);
+  return Math.round(-I * Math.log(threshold));
+}
 const SRS_DAYS = [0, 1, 3, 7, 14, 30];
 const MAX_SESSION = 10;
 let dayOffset = 0;
@@ -221,16 +241,23 @@ function todayInt() { const d = new Date(); d.setDate(d.getDate() + dayOffset); 
 function addDaysToInt(di, n) { const s = String(di); const d = new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`); d.setDate(d.getDate() + n); return parseInt(d.toISOString().slice(0,10).replace(/-/g,'')); }
 function diffDays(a, b) { const toDate = n => { const s = String(n); return new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`); }; return Math.round((toDate(b) - toDate(a)) / (1000*60*60*24)); }
 
-function getSRS(id) { return srsCache[id] || { level: 0, lastStudied: 0, nextReview: 0 }; }
+function getSRS(id) {
+  return srsCache[id] || { n: 0, ef: 2.5, lastStudied: 0, nextReview: 0 };
+}
 
 function updateSRSLocal(id, correct) {
-  const s = getSRS(id);
+  const s = srsCache[id] || { n: 0, ef: 2.5, lastStudied: 0 };
   const today = todayInt();
-  s.level = correct ? Math.min(5, s.level + 1) : Math.max(0, s.level - 1);
+  if (correct) {
+    s.n = Math.min(10, (s.n || 0) + 1);
+    s.ef = Math.min(3.0, (s.ef || 2.5) + 0.1);
+  } else {
+    s.n = Math.max(0, (s.n || 0) - 1);
+    s.ef = Math.max(1.3, (s.ef || 2.5) - 0.2);
+  }
   s.lastStudied = today;
-  s.nextReview = addDaysToInt(today, SRS_DAYS[s.level] || 30);
+  s.nextReview = addDaysToInt(today, getNextReviewDay(s.n, s.ef));
   srsCache[id] = s;
-  localStorage.setItem('srs_v1', JSON.stringify(srsCache));
 }
 
 async function updateSRS(id, correct) {
@@ -269,14 +296,34 @@ function recordStudySession() {
 }
 
 function selectSession() {
-  const today = todayInt();
-  const due = ALL_DATA.filter(c => { const s = srsCache[c.id]; return s && s.nextReview > 0 && s.nextReview <= today; }).sort((a, b) => (srsCache[a.id]?.level || 0) - (srsCache[b.id]?.level || 0));
-  const toReview = due.slice(0, sessionSizeMax);
-  const overflow = due.slice(MAX_SESSION);
-  overflow.forEach(c => { const s = srsCache[c.id] || {}; s.nextReview = addDaysToInt(today, 1); srsCache[c.id] = s; });
-  const remaining = sessionSizeMax - toReview.length;
-  const newItems = ALL_DATA.filter(c => !srsCache[c.id] || srsCache[c.id].level === 0 && srsCache[c.id].nextReview === 0).slice(0, remaining);
-  return { review: toReview, newItems, overflow: overflow.length };
+  const size = sessionSizeMax;
+  const THRESHOLD = 0.80;
+
+  // 学習済み（n>0）の定着率を計算してソート
+  const studied = ALL_DATA.filter(c => srsCache[c.id] && (srsCache[c.id].n || 0) > 0);
+  const unstudied = ALL_DATA.filter(c => !srsCache[c.id] || (srsCache[c.id].n || 0) === 0)
+    .sort((a, b) => a.id.localeCompare(b.id));
+
+  // 定着率を算出して昇順ソート（低い順＝復習優先）
+  const withRetention = studied.map(c => ({
+    chunk: c,
+    retention: getRetention(c.id)
+  })).sort((a, b) => a.retention - b.retention);
+
+  // 閾値以下を復習対象に
+  const toReview = withRetention
+    .filter(r => r.retention <= THRESHOLD)
+    .map(r => r.chunk);
+
+  const reviewCount = Math.min(toReview.length, size);
+  const remaining = size - reviewCount;
+  const newItems = unstudied.slice(0, remaining);
+
+  return {
+    review: toReview.slice(0, reviewCount),
+    newItems,
+    overflow: unstudied.slice(remaining).length
+  };
 }
 
 // ===== チャンクデータ =====
@@ -320,8 +367,8 @@ function calcScore(c, remainMs, level) { return remainMs * freqCoef(c.frequency)
 // ===== DEBUG =====
 function showToast(msg) { const t = document.getElementById('debug-toast'); t.textContent = msg; t.style.display = 'block'; setTimeout(() => { t.style.display = 'none'; }, 2000); }
 window.toggleDebug = () => { const b = document.getElementById('srs-panel-body'); const t = document.getElementById('debug-toggle'); b.classList.toggle('open'); t.textContent = b.classList.contains('open') ? '▲' : '▼'; };
-window.forceCorrect = async (id) => { updateSRSLocal(id, true); await saveToFirebase('srs', srsCache); const srs = getSRS(id); showToast(`✓ Lv→${srs.level} Next:D${String(srs.nextReview).slice(6)}`); updateHome(); };
-window.forceIncorrect = async (id) => { updateSRSLocal(id, false); await saveToFirebase('srs', srsCache); const srs = getSRS(id); showToast(`✗ Lv→${srs.level} Next:D${String(srs.nextReview).slice(6)}`); updateHome(); };
+window.forceCorrect = async (id) => { updateSRSLocal(id, true); await saveToFirebase('srs', srsCache); const srs = getSRS(id); showToast(`✓ n→${srs.n||0} ef→${(srs.ef||2.5).toFixed(1)} Next:D${String(srs.nextReview).slice(6)}`); updateHome(); };
+window.forceIncorrect = async (id) => { updateSRSLocal(id, false); await saveToFirebase('srs', srsCache); const srs = getSRS(id); showToast(`✗ n→${srs.n||0} ef→${(srs.ef||2.5).toFixed(1)} Next:D${String(srs.nextReview).slice(6)}`); updateHome(); };
 
 function renderSRSStatus() {
   const today = todayInt();
@@ -367,6 +414,7 @@ let sessionSizeMax = 10;
 let isMuted = false;
 let knownItems = new Set(); // I already know this で除外するIDセット
 let session = [], sessionMeta = [], inputIndex = 0, outputIndex = 0, rpIndex = 0;
+let pendingSession = null; // バックグラウンド計算済みセッション
 let results = [], rpResults = [], timerInterval = null, timeLeft = 15, answered = false, questionStartTime = 0;
 let masteredCount = 0, highScore = 0;
 
@@ -435,7 +483,7 @@ window.toggleMute = () => {
   btn.className = isMuted ? 'mute-toggle muted' : 'mute-toggle';
 };
 
-window.startSession = () => { if (session.length === 0) return; inputIndex = 0; results = []; knownItems = new Set(); showScreen('input'); showInput(); };
+window.startSession = () => { if (session.length === 0) return; inputIndex = 0; results = []; knownItems = new Set(); pendingSession = null; showScreen('input'); showInput(); };
 
 function showInput() {
   const c = session[inputIndex]; const meta = sessionMeta[inputIndex];
@@ -482,8 +530,9 @@ window.nextInput = (action) => {
     // アウトプット・ロールプレイから除外・30日後に1回テスト
     const c = session[inputIndex];
     knownItems.add(c.id); // 除外セットに追加
-    const s = srsCache[c.id] || {};
-    s.level = 5;
+    const s = srsCache[c.id] || { n: 0, ef: 2.5 };
+    s.n = 6;  // 高い復習回数 → 長い間隔
+    s.ef = 2.5;
     s.lastStudied = todayInt();
     s.nextReview = addDaysToInt(todayInt(), 30);
     srsCache[c.id] = s;
@@ -525,6 +574,12 @@ function showOutput() {
   }
   if (outputIndex >= session.length) {
     rpIndex = 0; rpResults = []; showScreen('roleplay'); showRoleplay(); return;
+  }
+  // 最後の問題を提示する時点でバックグラウンド計算開始
+  if (outputIndex === session.length - 1) {
+    setTimeout(() => {
+      pendingSession = selectSession();
+    }, 0);
   }
   answered = false; questionStartTime = Date.now(); const c = session[outputIndex];
   document.getElementById('output-progress').style.width = `${(outputIndex / session.length) * 100}%`;
@@ -729,7 +784,12 @@ window.skipRoleplay = () => { stopVoiceInput(); speechSynthesis.cancel(); rpResu
 window.nextRoleplay = () => { speechSynthesis.cancel(); rpIndex++; if (rpIndex >= session.length) showResults(); else showRoleplay(); };
 
 async function showResults() {
-  speechSynthesis.cancel(); recordStudySession();
+  speechSynthesis.cancel();
+  recordStudySession();
+  // バックグラウンド計算済みがあればそれを使用、なければ計算
+  const sel = pendingSession || selectSession();
+  pendingSession = null; // キャッシュをクリア
+  session = [...sel.review, ...sel.newItems];
   const stats = getStats(); const newStreak = getStreak();
   const correctResults = results.filter(r => r.correct);
   const baseAvg = results.length > 0 ? (results.reduce((s, r) => s + r.score, 0) / results.length) : 0;
