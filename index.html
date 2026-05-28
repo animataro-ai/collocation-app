@@ -9,8 +9,67 @@
 <!-- ローディング画面 -->
 <div id="loading-screen">
   <div class="loading-logo">Collocation</div>
-  <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+  <div class="loading-bar" id="loading-bar"><div class="loading-bar-fill"></div></div>
   <div class="loading-status" id="loading-status">Connecting...</div>
+  <div id="login-ui" style="display:none; margin-top:20px; text-align:center; width:100%; max-width:320px; margin-left:auto; margin-right:auto;">
+    <!-- Googleログイン -->
+    <button onclick="window.googleLogin()" style="
+      background:#fff; border:2px solid #ddd; border-radius:10px;
+      padding:12px 20px; font-family:'Outfit',sans-serif; font-size:15px;
+      font-weight:700; cursor:pointer; display:flex; align-items:center;
+      gap:10px; width:100%; margin-bottom:10px; justify-content:center;">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20">
+      Sign in with Google
+    </button>
+
+    <!-- 区切り -->
+    <div style="display:flex; align-items:center; gap:8px; margin:10px 0;">
+      <div style="flex:1; height:1px; background:#ddd;"></div>
+      <span style="font-family:'Nunito',sans-serif; font-size:12px; color:#aaa;">or</span>
+      <div style="flex:1; height:1px; background:#ddd;"></div>
+    </div>
+
+    <!-- Email/Password -->
+    <div id="email-form">
+      <input id="auth-email" type="email" placeholder="Email address" style="
+        width:100%; padding:11px 14px; border:2px solid #ddd; border-radius:10px;
+        font-family:'Nunito',sans-serif; font-size:14px; margin-bottom:8px;
+        box-sizing:border-box; outline:none;">
+      <input id="auth-password" type="password" placeholder="Password" style="
+        width:100%; padding:11px 14px; border:2px solid #ddd; border-radius:10px;
+        font-family:'Nunito',sans-serif; font-size:14px; margin-bottom:8px;
+        box-sizing:border-box; outline:none;">
+      <div id="auth-error" style="color:#a93226; font-family:'Nunito',sans-serif; font-size:12px; margin-bottom:8px; min-height:16px;"></div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
+        <button onclick="window.emailLogin()" style="
+          padding:11px; border-radius:10px; border:none;
+          background:#2d6a4f; color:#fff; font-family:'Outfit',sans-serif;
+          font-size:14px; font-weight:700; cursor:pointer;">Sign in</button>
+        <button onclick="window.emailSignup()" style="
+          padding:11px; border-radius:10px; border:2px solid #2d6a4f;
+          background:#fff; color:#2d6a4f; font-family:'Outfit',sans-serif;
+          font-size:14px; font-weight:700; cursor:pointer;">Sign up</button>
+      </div>
+      <button onclick="window.resetPassword()" style="
+        background:none; border:none; font-family:'Nunito',sans-serif;
+        font-size:12px; color:#aaa; cursor:pointer; text-decoration:underline; margin-bottom:10px;">
+        Forgot password?
+      </button>
+    </div>
+
+    <!-- 区切り -->
+    <div style="display:flex; align-items:center; gap:8px; margin:8px 0;">
+      <div style="flex:1; height:1px; background:#ddd;"></div>
+      <span style="font-family:'Nunito',sans-serif; font-size:12px; color:#aaa;">or</span>
+      <div style="flex:1; height:1px; background:#ddd;"></div>
+    </div>
+
+    <button onclick="window.anonLogin()" style="
+      background:none; border:none; font-family:'Nunito',sans-serif;
+      font-size:13px; color:#aaa; cursor:pointer; text-decoration:underline;">
+      Continue without account
+    </button>
+  </div>
 </div>
 
 <!-- 同期インジケーター -->
@@ -62,6 +121,12 @@
     <div class="srs-panel-body" id="srs-panel-body">
       <div class="debug-toast" id="debug-toast"></div>
       <div class="uid-display" id="uid-display"></div>
+      <button onclick="window.logoutUser()" style="
+        width:100%; padding:8px; margin-bottom:6px; border-radius:8px;
+        border:2px solid #ddd; background:none; font-family:'Outfit',sans-serif;
+        font-size:12px; color:#888; cursor:pointer;">
+        Sign out
+      </button>
       <div class="debug-divider"></div>
       <div class="debug-section-title">SRS Status — Force Update</div>
       <div id="srs-status-list"></div>
@@ -162,7 +227,7 @@
 <!-- Firebase SDK -->
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getAuth, signInAnonymously, signInWithPopup, signOut, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getDatabase, ref, get, set, update } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
 // ===== DATA =====
@@ -183,36 +248,150 @@ async function initFirebase() {
     const app = initializeApp(config);
     db = getDatabase(app);
     auth = getAuth(app);
-    document.getElementById('loading-status').textContent = 'Authenticating...';
-    await new Promise((resolve, reject) => {
-      onAuthStateChanged(auth, async (user) => {
+    document.getElementById('loading-status').textContent = 'Checking login...';
+
+    // 既存ログイン状態を確認
+    await new Promise((resolve) => {
+      const unsub = onAuthStateChanged(auth, (user) => {
+        unsub();
         if (user) {
           uid = user.uid;
           resolve();
         } else {
-          try {
-            const cred = await signInAnonymously(auth);
-            uid = cred.user.uid;
-            resolve();
-          } catch (e) { reject(e); }
+          // ログインUIを表示
+          document.getElementById('loading-bar').style.display = 'none';
+          document.getElementById('loading-status').textContent = '';
+          document.getElementById('login-ui').style.display = 'block';
+          // ログイン完了を待機
+          window._loginResolve = resolve;
         }
       });
     });
-    document.getElementById('loading-status').textContent = 'Loading data...';
-    await loadFromFirebase();
-    await loadChunks('A1');
-    document.getElementById('uid-display').textContent = `UID: ${uid}`;
-    document.getElementById('loading-screen').style.display = 'none';
-    updateHome();
+
+    await onLoginComplete();
   } catch (e) {
     console.error('Firebase init error:', e);
-    // オフラインフォールバック
     document.getElementById('loading-status').textContent = 'Offline mode';
     loadFromLocalStorage();
     document.getElementById('loading-screen').style.display = 'none';
     updateHome();
   }
 }
+
+async function onLoginComplete() {
+  document.getElementById('login-ui').style.display = 'none';
+  document.getElementById('loading-bar').style.display = 'block';
+  document.getElementById('loading-status').textContent = 'Loading data...';
+  await loadFromFirebase();
+  await loadChunks('A1');
+  const userInfo = auth.currentUser;
+  const isAnon = userInfo?.isAnonymous;
+  document.getElementById('uid-display').textContent = isAnon
+    ? `UID: ${uid} (Guest)`
+    : `${userInfo?.displayName || userInfo?.email || uid}`;
+  document.getElementById('loading-screen').style.display = 'none';
+  updateHome();
+}
+
+window.googleLogin = async () => {
+  try {
+    document.getElementById('login-ui').style.display = 'none';
+    document.getElementById('loading-bar').style.display = 'block';
+    document.getElementById('loading-status').textContent = 'Signing in...';
+    const provider = new GoogleAuthProvider();
+    const cred = await signInWithPopup(auth, provider);
+    uid = cred.user.uid;
+    if (window._loginResolve) { window._loginResolve(); window._loginResolve = null; }
+    else await onLoginComplete();
+  } catch (e) {
+    console.error('Google login error:', e);
+    document.getElementById('loading-status').textContent = 'Login failed. Try again.';
+    document.getElementById('login-ui').style.display = 'block';
+    document.getElementById('loading-bar').style.display = 'none';
+  }
+};
+
+window.anonLogin = async () => {
+  try {
+    document.getElementById('login-ui').style.display = 'none';
+    document.getElementById('loading-bar').style.display = 'block';
+    document.getElementById('loading-status').textContent = 'Connecting as guest...';
+    const cred = await signInAnonymously(auth);
+    uid = cred.user.uid;
+    if (window._loginResolve) { window._loginResolve(); window._loginResolve = null; }
+    else await onLoginComplete();
+  } catch (e) {
+    console.error('Anon login error:', e);
+    document.getElementById('loading-status').textContent = 'Connection failed.';
+    document.getElementById('login-ui').style.display = 'block';
+  }
+};
+
+// Email認証エラーメッセージ変換
+function getAuthErrorMsg(code) {
+  const msgs = {
+    'auth/invalid-email': 'Invalid email address.',
+    'auth/user-not-found': 'No account found with this email.',
+    'auth/wrong-password': 'Incorrect password.',
+    'auth/email-already-in-use': 'This email is already registered.',
+    'auth/weak-password': 'Password must be at least 6 characters.',
+    'auth/too-many-requests': 'Too many attempts. Please try again later.',
+    'auth/invalid-credential': 'Incorrect email or password.',
+  };
+  return msgs[code] || 'An error occurred. Please try again.';
+}
+
+window.emailLogin = async () => {
+  const email = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const errEl = document.getElementById('auth-error');
+  if (!email || !password) { errEl.textContent = 'Please enter email and password.'; return; }
+  try {
+    errEl.textContent = '';
+    const cred = await signInWithEmailAndPassword(auth, email, password);
+    uid = cred.user.uid;
+    document.getElementById('login-ui').style.display = 'none';
+    document.getElementById('loading-bar').style.display = 'block';
+    document.getElementById('loading-status').textContent = 'Signing in...';
+    if (window._loginResolve) { window._loginResolve(); window._loginResolve = null; }
+    else await onLoginComplete();
+  } catch (e) {
+    errEl.textContent = getAuthErrorMsg(e.code);
+  }
+};
+
+window.emailSignup = async () => {
+  const email = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const errEl = document.getElementById('auth-error');
+  if (!email || !password) { errEl.textContent = 'Please enter email and password.'; return; }
+  try {
+    errEl.textContent = '';
+    const cred = await createUserWithEmailAndPassword(auth, email, password);
+    uid = cred.user.uid;
+    document.getElementById('login-ui').style.display = 'none';
+    document.getElementById('loading-bar').style.display = 'block';
+    document.getElementById('loading-status').textContent = 'Creating account...';
+    if (window._loginResolve) { window._loginResolve(); window._loginResolve = null; }
+    else await onLoginComplete();
+  } catch (e) {
+    errEl.textContent = getAuthErrorMsg(e.code);
+  }
+};
+
+window.resetPassword = async () => {
+  const email = document.getElementById('auth-email').value.trim();
+  const errEl = document.getElementById('auth-error');
+  if (!email) { errEl.textContent = 'Please enter your email address first.'; return; }
+  try {
+    await sendPasswordResetEmail(auth, email);
+    errEl.style.color = '#1e6b3a';
+    errEl.textContent = 'Password reset email sent!';
+    setTimeout(() => { errEl.style.color = '#a93226'; errEl.textContent = ''; }, 4000);
+  } catch (e) {
+    errEl.textContent = getAuthErrorMsg(e.code);
+  }
+};
 
 async function loadFromFirebase() {
   try {
@@ -377,6 +556,16 @@ function renderSRSStatus() {
 window.simulateDays = (n) => { dayOffset += n; const today = todayInt(); const s = String(today); document.getElementById('day-offset-label').textContent = `+${dayOffset}`; document.getElementById('simulated-date').textContent = `${s.slice(0,4)}/${s.slice(4,6)}/${s.slice(6,8)}`; updateHome(); };
 window.simulateStudy = () => { const today = todayInt(); const lastStudied = statsCache.lastStudied || 0; let newStreak = 1; if (lastStudied > 0 && diffDays(lastStudied, today) === 1) newStreak = (statsCache.streak || 0) + 1; updateStatsLocal({ streak: newStreak, lastStudied: today, studiedToday: today }); saveStats(); showToast(`📚 Studied: streak=${newStreak}`); updateHome(); };
 window.simulateBreakStreak = () => { updateStatsLocal({ lastStudied: addDaysToInt(todayInt(), -3), studiedToday: 0 }); saveStats(); showToast('💔 Streak broken'); updateHome(); };
+window.logoutUser = async () => {
+  if (confirm('Sign out?')) {
+    await signOut(auth);
+    uid = null;
+    srsCache = {};
+    statsCache = {};
+    location.reload();
+  }
+};
+
 window.resetAll = async () => { srsCache = {}; statsCache = {}; dayOffset = 0; masteredCount = 0; highScore = 0; localStorage.removeItem('srs_v1'); localStorage.removeItem('stats_v1'); if (db && uid) { await set(ref(db, `users/${uid}/srs`), {}); await set(ref(db, `users/${uid}/stats`), {}); } document.getElementById('day-offset-label').textContent = '+0'; document.getElementById('simulated-date').textContent = 'today'; showToast('🔄 Reset'); updateHome(); };
 
 function renderStreakDots() {
@@ -433,7 +622,7 @@ function generateScene(c) {
   return scenes[c.level] || 'You are having a conversation at work.';
 }
 
-window.showChunkDialog = (id) => {
+function showChunkDialog(id) {
   const c = getChunkById(id);
   if (!c) return;
   document.getElementById('dialog-chunk').textContent = c.chunk;
@@ -444,7 +633,8 @@ window.showChunkDialog = (id) => {
   document.getElementById('chunk-dialog-overlay').style.display = 'flex';
 };
 
-window.closeChunkDialog = (e) => {
+window.closeChunkDialog = (e) => {  // onclick属性から呼ばれるためwindow経由を維持
+
   if (e.target.id === 'chunk-dialog-overlay') {
     document.getElementById('chunk-dialog-overlay').style.display = 'none';
   }
@@ -481,9 +671,8 @@ function showInput() {
     c.similar.forEach(id => {
       const sc = getChunkById(id);
       if (sc) {
-        tags += `<span class="similar-tag" onclick="window.showChunkDialog('${id}')">${sc.chunk}</span>`;
+        tags += `<span class="similar-tag chunk-ref" data-chunk-id="${id}">${sc.chunk}</span>`;
       } else if (typeof id === 'string' && !id.includes('_col_')) {
-        // IDではなく文字列として格納されている場合の互換処理
         tags += `<span class="similar-tag">${id}</span>`;
       }
     });
@@ -491,7 +680,7 @@ function showInput() {
   if (c.opposite) {
     const oc = getChunkById(c.opposite);
     if (oc) {
-      tags += `<span class="opposite-tag" onclick="window.showChunkDialog('${c.opposite}')">↔ ${oc.chunk}</span>`;
+      tags += `<span class="opposite-tag chunk-ref" data-chunk-id="${c.opposite}">↔ ${oc.chunk}</span>`;
     } else if (typeof c.opposite === 'string' && !c.opposite.includes('_col_')) {
       tags += `<span class="opposite-tag">↔ ${c.opposite}</span>`;
     }
@@ -790,6 +979,15 @@ async function showResults() {
 }
 window.goHome = () => { speechSynthesis.cancel(); showScreen('home'); updateHome(); };
 function showScreen(name) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(`screen-${name}`).classList.add('active'); }
+
+// chunk-refタグのクリックイベントをdocumentレベルで処理
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('.chunk-ref');
+  if (el) {
+    const id = el.dataset.chunkId;
+    if (id) showChunkDialog(id);
+  }
+});
 
 // 起動
 initFirebase();
