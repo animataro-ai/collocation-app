@@ -100,6 +100,7 @@
   .example-text { font-family: 'Nunito', sans-serif; font-size: 15px; line-height: 1.75; color: var(--text); }
   .example-text mark { background: none; color: var(--accent); font-style: normal; font-weight: 800; }
   .explanation-card { background: var(--surface2); border: 2px solid var(--border); border-radius: var(--radius); padding: 12px; margin-bottom: 10px; }
+  .example-card { background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px; }
   .explanation-text { font-family: 'Nunito', sans-serif; font-size: 14px; line-height: 1.8; color: var(--text); font-weight: 500; }
   .similar-row { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
   .similar-tag { background: var(--accent2-light); border: 1px solid #9ab8d4; border-radius: 6px; padding: 3px 8px; font-size: 11px; font-family: 'Space Mono', monospace; color: var(--accent2); }
@@ -296,14 +297,19 @@
   <div class="collocation-card">
     <div class="collocation-main" id="col-main"></div>
     <div class="collocation-type" id="col-type"></div>
-    <div class="example-label">Example</div>
-    <div class="example-text" id="col-example"></div>
   </div>
   <div class="audio-row">
     <button class="btn-audio" id="btn-audio-col" onclick="speakCollocation()"><span>🔊</span> Collocation</button>
     <button class="btn-audio" id="btn-audio-ex" onclick="speakExample()"><span>🔊</span> Example</button>
   </div>
-  <div class="explanation-card"><div class="explanation-text" id="col-explanation"></div><div class="similar-row" id="col-similar"></div></div>
+  <div class="explanation-card">
+    <div class="explanation-text" id="col-explanation"></div>
+    <div class="similar-row" id="col-similar"></div>
+  </div>
+  <div class="example-card">
+    <div class="example-label">Example</div>
+    <div class="example-text" id="col-example"></div>
+  </div>
   <div class="btn-trio-top"><button class="btn-known" onclick="nextInput('known')">I already know this →</button></div>
   <div class="btn-trio"><button class="btn-got" onclick="nextInput('got')">Got it ✓</button><button class="btn-return" onclick="nextInput('return')">Return ↩</button></div>
 </div>
@@ -592,6 +598,7 @@ function renderStreakDots() {
 // ===== STATE =====
 let sessionSizeMax = 10;
 let isMuted = false;
+let knownItems = new Set(); // I already know this で除外するIDセット
 let session = [], sessionMeta = [], inputIndex = 0, outputIndex = 0, rpIndex = 0;
 let results = [], rpResults = [], timerInterval = null, timeLeft = 15, answered = false, questionStartTime = 0;
 let masteredCount = 0, highScore = 0;
@@ -660,7 +667,7 @@ window.toggleMute = () => {
   btn.className = isMuted ? 'mute-toggle muted' : 'mute-toggle';
 };
 
-window.startSession = () => { if (session.length === 0) return; inputIndex = 0; results = []; showScreen('input'); showInput(); };
+window.startSession = () => { if (session.length === 0) return; inputIndex = 0; results = []; knownItems = new Set(); showScreen('input'); showInput(); };
 
 function showInput() {
   const c = session[inputIndex]; const meta = sessionMeta[inputIndex];
@@ -673,15 +680,24 @@ function showInput() {
   document.getElementById('col-explanation').textContent = c.explanation;
   // similar/oppositeをIDから取得してクリッカブルタグで表示
   let tags = '';
-  if (c.similar && c.similar.length > 0) {
-    tags = c.similar.map(id => {
+  if (c.similar && Array.isArray(c.similar) && c.similar.length > 0) {
+    c.similar.forEach(id => {
       const sc = getChunkById(id);
-      return sc ? `<span class="similar-tag" onclick="showChunkDialog('${id}')">${sc.chunk}</span>` : '';
-    }).filter(Boolean).join('');
+      if (sc) {
+        tags += `<span class="similar-tag" onclick="window.showChunkDialog('${id}')">${sc.chunk}</span>`;
+      } else if (typeof id === 'string' && !id.includes('_col_')) {
+        // IDではなく文字列として格納されている場合の互換処理
+        tags += `<span class="similar-tag">${id}</span>`;
+      }
+    });
   }
   if (c.opposite) {
     const oc = getChunkById(c.opposite);
-    if (oc) tags += `<span class="opposite-tag" onclick="showChunkDialog('${c.opposite}')">↔ ${oc.chunk}</span>`;
+    if (oc) {
+      tags += `<span class="opposite-tag" onclick="window.showChunkDialog('${c.opposite}')">↔ ${oc.chunk}</span>`;
+    } else if (typeof c.opposite === 'string' && !c.opposite.includes('_col_')) {
+      tags += `<span class="opposite-tag">↔ ${c.opposite}</span>`;
+    }
   }
   document.getElementById('col-similar').innerHTML = tags;
   const badge = document.getElementById('input-type-badge');
@@ -696,18 +712,16 @@ window.nextInput = (action) => {
   speechSynthesis.cancel();
   if (action === 'return') { showInput(); return; }
   if (action === 'known') {
-    // アウトプット・ロールプレイをスキップ・30日後に1回テスト
+    // アウトプット・ロールプレイから除外・30日後に1回テスト
     const c = session[inputIndex];
-    updateSRSLocal(c.id, true);
-    // levelを5（最高）にして30日後に設定
-    const m = srsCache;
-    const s = m[c.id] || {};
+    knownItems.add(c.id); // 除外セットに追加
+    const s = srsCache[c.id] || {};
     s.level = 5;
     s.lastStudied = todayInt();
     s.nextReview = addDaysToInt(todayInt(), 30);
     srsCache[c.id] = s;
     saveToFirebase('srs', srsCache);
-    results.push({ chunk: c.chunk, correct: true, score: 0, remainMs: 0, srs: s, skipped: true });
+    // resultsには追加しない（スコアに影響させない）
   }
   inputIndex++;
   if (inputIndex >= session.length) { outputIndex = 0; showScreen('output'); showOutput(); }
@@ -738,6 +752,13 @@ function makeChoices(correct) {
 }
 
 function showOutput() {
+  // knownItemsに含まれるものをスキップ
+  while (outputIndex < session.length && knownItems.has(session[outputIndex].id)) {
+    outputIndex++;
+  }
+  if (outputIndex >= session.length) {
+    rpIndex = 0; rpResults = []; showScreen('roleplay'); showRoleplay(); return;
+  }
   answered = false; questionStartTime = Date.now(); const c = session[outputIndex];
   document.getElementById('output-progress').style.width = `${(outputIndex / session.length) * 100}%`;
   document.getElementById('output-counter').textContent = `${outputIndex + 1} / ${session.length}`;
@@ -779,6 +800,11 @@ async function timeUp() {
 window.nextOutput = () => { speechSynthesis.cancel(); outputIndex++; if (outputIndex >= session.length) { rpIndex = 0; rpResults = []; showScreen('roleplay'); showRoleplay(); } else showOutput(); };
 
 function showRoleplay() {
+  // knownItemsに含まれるものをスキップ
+  while (rpIndex < session.length && knownItems.has(session[rpIndex].id)) {
+    rpIndex++;
+  }
+  if (rpIndex >= session.length) { showResults(); return; }
   const c = session[rpIndex];
   const rpQuestion = c.rp_question;
   if (!rpQuestion) { nextRoleplay(); return; }
