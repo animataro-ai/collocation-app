@@ -254,15 +254,15 @@ async function initFirebase() {
     await new Promise((resolve) => {
       const unsub = onAuthStateChanged(auth, (user) => {
         unsub();
-        if (user) {
+        // Googleまたはメールで認証済みの場合のみスキップ
+        if (user && !user.isAnonymous) {
           uid = user.uid;
           resolve();
         } else {
-          // ログインUIを表示
+          // 未ログインまたは匿名→ログインUIを表示
           document.getElementById('loading-bar').style.display = 'none';
           document.getElementById('loading-status').textContent = '';
           document.getElementById('login-ui').style.display = 'block';
-          // ログイン完了を待機
           window._loginResolve = resolve;
         }
       });
