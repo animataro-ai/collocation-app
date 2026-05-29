@@ -1,14 +1,15 @@
 <!DOCTYPE html>
 <html>
 <head>
+<title>Chank Master</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
 
 <!-- ローディング画面 -->
 <div id="loading-screen">
-  <div class="loading-logo">Collocation</div>
+  <div class="loading-logo">Chank Master</div>
   <div class="loading-bar" id="loading-bar"><div class="loading-bar-fill"></div></div>
   <div class="loading-status" id="loading-status">Connecting...</div>
   <div id="login-ui" style="display:none; margin-top:20px; text-align:center; width:100%; max-width:320px; margin-left:auto; margin-right:auto;">
@@ -77,7 +78,12 @@
 
 <div id="app">
 <div class="screen active" id="screen-home">
-  <div class="home-header"><div class="home-logo">Collocation</div><div class="home-sub">A1 Learning System</div></div>
+  <div class="home-header"><div class="home-logo">Chank Master</div><div class="home-sub">CHANK LEARNING SYSTEM</div></div>
+  <div class="user-info-bar" id="user-info-bar">
+    <span class="user-status-dot" id="user-status-dot"></span>
+    <span class="user-info-text" id="user-info-text">—</span>
+    <button class="user-signout-btn" onclick="window.logoutUser()">Sign out</button>
+  </div>
   <div class="stats-grid">
     <div class="stat-card"><div class="stat-num" id="stat-total">0</div><div class="stat-label">Today</div></div>
     <div class="stat-card"><div class="stat-num" id="stat-mastered">0</div><div class="stat-label">Mastered</div></div>
@@ -91,7 +97,7 @@
   <div class="session-breakdown">
     <div class="sb-title">Today's Session</div>
     <div class="sb-row"><span class="sb-label">Review due</span><span class="sb-val review" id="sb-review">0</span></div>
-    <div class="sb-row"><span class="sb-label">New collocations</span><span class="sb-val new" id="sb-new">0</span></div>
+    <div class="sb-row"><span class="sb-label">New chanks</span><span class="sb-val new" id="sb-new">0</span></div>
     <div class="sb-row"><span class="sb-label">Total</span><span class="sb-val total" id="sb-total">0</span></div>
   </div>
   <!-- セッション設定 -->
@@ -111,7 +117,7 @@
     </div>
   </div>
   <div class="session-preview">
-    <div class="preview-title">Today's Collocations</div>
+    <div class="preview-title">Today's Chanks</div>
     <div class="preview-tags" id="preview-tags"></div>
   </div>
   <div class="overflow-notice" id="overflow-notice"></div>
@@ -161,7 +167,7 @@
     <div class="collocation-type" id="col-type"></div>
   </div>
   <div class="audio-row">
-    <button class="btn-audio" id="btn-audio-col" onclick="speakCollocation()"><span>🔊</span> Collocation</button>
+    <button class="btn-audio" id="btn-audio-col" onclick="speakCollocation()"><span>🔊</span> Chank</button>
     <button class="btn-audio" id="btn-audio-ex" onclick="speakExample()"><span>🔊</span> Example</button>
   </div>
   <div class="explanation-card">
@@ -226,7 +232,6 @@
 
 <!-- Firebase SDK -->
 <script>
-// デバッグパネル解錠：High Score欄を5回タップ or Ctrl+Shift+D
 let _dbgCount = 0, _dbgTimer = null;
 function triggerDebugUnlock() {
   _dbgCount++;
