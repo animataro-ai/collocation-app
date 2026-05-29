@@ -66,9 +66,32 @@ export async function onLoginComplete() {
   await loadChunks();
   const userInfo = auth.currentUser;
   const isAnon = userInfo?.isAnonymous;
+  const displayName = userInfo?.displayName || null;
+  const email = userInfo?.email || null;
+
+  // デバッグパネル内のUID表示
   document.getElementById('uid-display').textContent = isAnon
     ? `UID: ${uid} (Guest)`
-    : `${userInfo?.displayName || userInfo?.email || uid}`;
+    : `${displayName || email || uid}`;
+
+  // ホーム画面のユーザー情報バー
+  const dot = document.getElementById('user-status-dot');
+  const infoText = document.getElementById('user-info-text');
+  if (dot && infoText) {
+    if (isAnon) {
+      dot.className = 'user-status-dot guest';
+      infoText.textContent = 'Guest (anonymous)';
+    } else if (displayName && email) {
+      dot.className = 'user-status-dot';
+      infoText.textContent = `${displayName}  (${email})`;
+    } else if (email) {
+      dot.className = 'user-status-dot';
+      infoText.textContent = email;
+    } else {
+      dot.className = 'user-status-dot';
+      infoText.textContent = `UID: ${uid}`;
+    }
+  }
   document.getElementById('loading-screen').style.display = 'none';
   if (window.updateHome) window.updateHome();
 }
