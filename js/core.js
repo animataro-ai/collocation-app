@@ -1,6 +1,6 @@
 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, signInAnonymously, signInWithPopup, signOut, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getAuth, signInAnonymously, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getDatabase, ref, get, set } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
 // ===== FIREBASE =====
@@ -19,11 +19,23 @@ export async function initFirebase() {
     auth = getAuth(app);
     document.getElementById('loading-status').textContent = 'Checking login...';
 
-    // 既存ログイン状態を確認
+    // Googleリダイレクト戻り処理
+    try {
+      const redirectResult = await getRedirectResult(auth);
+      if (redirectResult?.user) {
+        uid = redirectResult.user.uid;
+        await onLoginComplete();
+        return;
+      }
+    } catch (e) {
+      console.warn('Redirect result error:', e);
+    }
+
+    // 既存ログイン確認（匿名含む）
     await new Promise((resolve) => {
       const unsub = onAuthStateChanged(auth, (user) => {
         unsub();
-        if (user && !user.isAnonymous) {
+        if (user) {
           uid = user.uid;
           resolve();
         } else {
@@ -51,7 +63,7 @@ export async function onLoginComplete() {
   document.getElementById('loading-bar').style.display = 'block';
   document.getElementById('loading-status').textContent = 'Loading data...';
   await loadFromFirebase();
-  await loadChunks('A1');
+  await loadChunks();
   const userInfo = auth.currentUser;
   const isAnon = userInfo?.isAnonymous;
   document.getElementById('uid-display').textContent = isAnon
@@ -67,12 +79,9 @@ window.googleLogin = async () => {
   try {
     document.getElementById('login-ui').style.display = 'none';
     document.getElementById('loading-bar').style.display = 'block';
-    document.getElementById('loading-status').textContent = 'Waiting for Google...';
+    document.getElementById('loading-status').textContent = 'Redirecting to Google...';
     const provider = new GoogleAuthProvider();
-    const cred = await signInWithPopup(auth, provider);
-    uid = cred.user.uid;
-    if (window._loginResolve) { window._loginResolve(); window._loginResolve = null; }
-    else await onLoginComplete();
+    await signInWithRedirect(auth, provider);
   } catch (e) {
     console.error('Google login error:', e);
     document.getElementById('loading-status').textContent = 'Login failed. Try again.';
@@ -317,14 +326,14 @@ export function selectSession(sessionSizeMax) {
 export let ALL_DATA = [];
 export let chunksMap = {};
 
-export async function loadChunks(level = 'A1') {
+export async function loadChunks() {
   try {
     const snap = await get(ref(db, 'chunks'));
     if (!snap.exists()) { console.warn('No chunks found'); return; }
     const all = snap.val();
-    ALL_DATA = Object.values(all).filter(c => c.level === level);
+    ALL_DATA = Object.values(all);
     chunksMap = all;
-    console.log('Loaded', ALL_DATA.length, 'chunks (' + level + ')');
+    console.log('Loaded', ALL_DATA.length, 'chunks (all levels)');
   } catch(e) {
     console.error('loadChunks error:', e);
   }
