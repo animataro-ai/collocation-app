@@ -267,3 +267,51 @@
   .collocation-main { font-size: 42px; }
   .choice-btn { font-size: 14px; padding: 20px 14px; }
 }
+
+/* ===== ユーザー情報バー ===== */
+.user-info-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--card);
+  border-radius: 10px;
+  margin-bottom: 12px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 12px;
+  color: var(--text2);
+  border: 1px solid var(--border);
+}
+.user-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4caf50;
+  flex-shrink: 0;
+}
+.user-status-dot.guest {
+  background: #aaa;
+}
+.user-info-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--text2);
+}
+.user-signout-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 11px;
+  color: var(--text2);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.user-signout-btn:hover {
+  background: var(--border);
+}
