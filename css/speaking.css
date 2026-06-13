@@ -1,0 +1,315 @@
+/* ===== Speaking Room – CSS =====
+   Chank Master規約に準拠:
+   - CSS変数: var(--bg/surface/accent/text/border/radius)
+   - フォント: 'Outfit'(見出し/ラベル) / 'Nunito'(本文) / 'Space Mono'(数値)
+   ================================ */
+
+/* ── セクションラベル ── */
+.sp-section-label {
+  font-family: 'Outfit', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  margin-bottom: 8px;
+}
+
+/* ── 人格グリッド ── */
+.sp-persona-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.sp-persona-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color .15s, background .15s;
+}
+.sp-persona-btn:hover { border-color: var(--accent); }
+.sp-persona-btn.active {
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+.sp-persona-custom { grid-column: span 2; flex-direction: row; align-items: center; gap: 10px; }
+.sp-persona-custom .sp-persona-desc { margin-left: auto; }
+
+.sp-persona-icon { font-size: 20px; line-height: 1; }
+.sp-persona-name {
+  font-family: 'Outfit', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+.sp-persona-desc {
+  font-family: 'Nunito', sans-serif;
+  font-size: 11px;
+  color: var(--text2);
+}
+
+/* ── カスタムテキストエリア ── */
+.sp-custom-textarea {
+  width: 100%;
+  padding: 11px 13px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  font-family: 'Nunito', sans-serif;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--surface);
+  resize: none;
+  outline: none;
+  box-sizing: border-box;
+  margin-bottom: 4px;
+  line-height: 1.5;
+}
+.sp-custom-textarea:focus { border-color: var(--accent); }
+
+/* ── 話題入力 ── */
+.sp-topic-input {
+  width: 100%;
+  padding: 11px 14px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  font-family: 'Nunito', sans-serif;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--surface);
+  outline: none;
+  box-sizing: border-box;
+  margin-bottom: 8px;
+}
+.sp-topic-input:focus { border-color: var(--accent); }
+
+.sp-topic-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.sp-chip {
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 2px solid var(--border);
+  background: var(--surface);
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px;
+  color: var(--text2);
+  cursor: pointer;
+  transition: border-color .15s, color .15s;
+}
+.sp-chip:hover, .sp-chip.active { border-color: var(--accent); color: var(--accent); }
+
+/* ── 戻るリンク ── */
+.sp-back-link {
+  display: block;
+  text-align: center;
+  font-family: 'Nunito', sans-serif;
+  font-size: 13px;
+  color: var(--text2);
+  text-decoration: underline;
+  background: none;
+  border: none;
+  cursor: pointer;
+  margin-top: 14px;
+  width: 100%;
+}
+
+/* ── 会話画面 ── */
+.sp-chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--border);
+}
+.sp-chat-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+.sp-end-btn {
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px;
+  color: var(--danger);
+  background: none;
+  border: 2px solid var(--danger);
+  border-radius: 8px;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-weight: 700;
+}
+.sp-voice-toggle {
+  font-size: 20px;
+  background: none;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  padding: 4px 8px;
+  cursor: pointer;
+  line-height: 1;
+}
+.sp-voice-toggle.muted { opacity: 0.4; }
+
+/* ── メッセージ一覧 ── */
+.sp-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 200px;
+  max-height: calc(100dvh - 340px);
+  overflow-y: auto;
+  margin-bottom: 12px;
+  padding-right: 2px;
+}
+.sp-messages::-webkit-scrollbar { width: 4px; }
+.sp-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+/* バブル共通 */
+.sp-bubble-wrap {
+  display: flex;
+  flex-direction: column;
+  animation: sp-fadein .22s ease both;
+}
+@keyframes sp-fadein { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:none; } }
+
+.sp-bubble-wrap.user { align-items: flex-end; }
+.sp-bubble-wrap.ai   { align-items: flex-start; }
+
+.sp-bubble {
+  max-width: 84%;
+  padding: 11px 14px;
+  border-radius: 14px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+}
+.sp-bubble-wrap.user .sp-bubble {
+  background: var(--accent);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+.sp-bubble-wrap.ai .sp-bubble {
+  background: var(--surface);
+  color: var(--text);
+  border: 2px solid var(--border);
+  border-bottom-left-radius: 4px;
+}
+
+/* 再生ボタン */
+.sp-replay-btn {
+  margin-top: 4px;
+  margin-left: 2px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 11px;
+  color: var(--text2);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.sp-replay-btn:hover { color: var(--accent); }
+
+/* ── Thinkingドット ── */
+.sp-thinking {
+  display: flex;
+  gap: 5px;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  border-bottom-left-radius: 4px;
+  width: fit-content;
+  margin-bottom: 10px;
+}
+.sp-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--text2);
+  animation: sp-blink 1.2s infinite;
+}
+.sp-dot:nth-child(2) { animation-delay: .2s; }
+.sp-dot:nth-child(3) { animation-delay: .4s; }
+@keyframes sp-blink { 0%,80%,100%{opacity:.2} 40%{opacity:1} }
+
+/* ── コンポーザー ── */
+.sp-composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 2px solid var(--border);
+}
+
+.sp-mic-wrap { position: relative; width: 48px; height: 48px; flex-shrink: 0; }
+.sp-mic-ripple {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: var(--accent-light);
+  transform: scale(1); opacity: 0;
+}
+.sp-mic-ripple.active {
+  animation: sp-ripple 1.4s ease-out infinite;
+}
+@keyframes sp-ripple { 0%{transform:scale(1);opacity:.6} 100%{transform:scale(2.2);opacity:0} }
+
+.sp-mic-btn {
+  position: relative;
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .15s;
+}
+.sp-mic-btn.listening { background: #b7770d; }
+.sp-mic-btn:disabled { opacity: 0.4; cursor: default; }
+
+.sp-input {
+  flex: 1;
+  padding: 12px 13px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  font-family: 'Nunito', sans-serif;
+  font-size: 15px;
+  color: var(--text);
+  background: var(--surface);
+  outline: none;
+  resize: none;
+  max-height: 110px;
+  line-height: 1.45;
+  box-sizing: border-box;
+}
+.sp-input:focus { border-color: var(--accent); }
+.sp-input.listening { border-color: #b7770d; }
+
+.sp-send-btn {
+  width: 48px; height: 48px;
+  border-radius: var(--radius);
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background .15s;
+}
+.sp-send-btn:disabled { background: var(--border); cursor: default; }
