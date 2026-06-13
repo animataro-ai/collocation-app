@@ -98,8 +98,32 @@
   <div class="screen" id="sp-screen-chat">
     <div class="sp-chat-header">
       <button onclick="endConversation()" class="sp-end-btn">✕ End</button>
-      <div class="sp-chat-title" id="sp-chat-title">Conversation</div>
       <button onclick="toggleVoice()" class="sp-voice-toggle" id="sp-voice-toggle" title="Toggle voice">🔊</button>
+    </div>
+
+    <!-- アバターステージ -->
+    <div class="sp-avatar-stage">
+      <svg class="sp-avatar" id="sp-avatar" viewBox="0 0 100 100" data-exp="neutral" data-state="idle">
+        <circle class="av-face" cx="50" cy="50" r="38"/>
+        <!-- ほっぺ -->
+        <circle class="av-cheek" cx="32" cy="58" r="5"/>
+        <circle class="av-cheek" cx="68" cy="58" r="5"/>
+        <!-- 眉 -->
+        <path class="av-brow av-brow-l" d="M30 36 Q38 33 44 36"/>
+        <path class="av-brow av-brow-r" d="M56 36 Q62 33 70 36"/>
+        <!-- 目 -->
+        <g class="av-eye av-eye-l">
+          <circle class="av-pupil" cx="38" cy="46" r="5"/>
+          <path class="av-eye-arc" d="M32 47 Q38 41 44 47"/>
+        </g>
+        <g class="av-eye av-eye-r">
+          <circle class="av-pupil" cx="62" cy="46" r="5"/>
+          <path class="av-eye-arc" d="M56 47 Q62 41 68 47"/>
+        </g>
+        <!-- 口 -->
+        <path class="av-mouth" id="sp-avatar-mouth" d="M40 62 Q50 70 60 62"/>
+      </svg>
+      <div class="sp-avatar-name" id="sp-avatar-name">Tutor</div>
     </div>
 
     <div class="sp-messages" id="sp-messages"></div>
