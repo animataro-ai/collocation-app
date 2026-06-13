@@ -167,8 +167,8 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  min-height: 200px;
-  max-height: calc(100dvh - 340px);
+  min-height: 160px;
+  max-height: calc(100dvh - 440px);
   overflow-y: auto;
   margin-bottom: 12px;
   padding-right: 2px;
@@ -314,3 +314,74 @@
   transition: background .15s;
 }
 .sp-send-btn:disabled { background: var(--border); cursor: default; }
+
+/* ===== アバター（表情つきキャラクター） ===== */
+.sp-avatar-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 0 10px;
+}
+.sp-avatar {
+  width: 86px;
+  height: 86px;
+  overflow: visible;
+}
+.sp-avatar-name {
+  font-family: 'Outfit', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text2);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+/* パーツの基本 */
+.av-face   { fill: var(--accent-light); stroke: var(--accent); stroke-width: 2.5; }
+.av-cheek  { fill: #f5a9a0; opacity: .5; }
+.av-pupil  { fill: var(--text); }
+.av-eye-arc{ fill: none; stroke: var(--text); stroke-width: 3.5; stroke-linecap: round; display: none; }
+.av-brow   { fill: none; stroke: var(--text); stroke-width: 2.5; stroke-linecap: round; opacity: 0; transition: opacity .2s, transform .2s; transform-box: fill-box; transform-origin: center; }
+.av-mouth  { fill: none; stroke: var(--text); stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; transition: d .12s ease; }
+.av-mouth.filled { fill: var(--text); }
+.av-eye    { transform-box: fill-box; transform-origin: center; }
+
+/* まばたき（通常時） */
+@keyframes av-blink { 0%,93%,100% { transform: scaleY(1); } 96.5% { transform: scaleY(.12); } }
+.sp-avatar[data-exp="neutral"] .av-eye,
+.sp-avatar[data-exp="curious"] .av-eye,
+.sp-avatar[data-exp="happy"]   .av-eye { animation: av-blink 4.5s infinite; }
+
+/* 笑顔・笑い → 目がアーチ（＾＾） */
+.sp-avatar[data-exp="laugh"] .av-pupil,
+.sp-avatar[data-exp="happy"] .av-pupil { /* happyは点目のまま、laughはアーチ */ }
+.sp-avatar[data-exp="laugh"] .av-pupil { display: none; }
+.sp-avatar[data-exp="laugh"] .av-eye-arc { display: block; }
+.sp-avatar[data-exp="laugh"] .av-eye { animation: none; }
+
+/* 驚き → 眉が上がる＋目が少し大きく */
+.sp-avatar[data-exp="surprised"] .av-brow,
+.sp-avatar[data-exp="curious"]   .av-brow,
+.sp-avatar[data-state="thinking"] .av-brow { opacity: .8; }
+.sp-avatar[data-exp="surprised"] .av-brow { transform: translateY(-3px); }
+.sp-avatar[data-exp="surprised"] .av-eye  { transform: scale(1.15); animation: none; }
+/* curiousは右眉だけ上げる */
+.sp-avatar[data-exp="curious"] .av-brow-r { transform: translateY(-3px); }
+
+/* 考え中 → 目線を上に＋ふわふわ */
+.sp-avatar[data-state="thinking"] .av-eye { transform: translateY(-3px); animation: none; }
+.sp-avatar[data-state="thinking"] { animation: av-think 2s ease-in-out infinite; }
+@keyframes av-think { 0%,100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-2px) rotate(-2deg); } }
+
+/* 傾聴中 → やさしく拍動 */
+.sp-avatar[data-state="listening"] { animation: av-pulse 1.6s ease-in-out infinite; }
+@keyframes av-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+
+/* 発話中 → 軽く上下 */
+.sp-avatar[data-state="talking"] { animation: av-talkbob .45s ease-in-out infinite; }
+@keyframes av-talkbob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-1.5px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .sp-avatar, .sp-avatar .av-eye { animation: none !important; }
+}
