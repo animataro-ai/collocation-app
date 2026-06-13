@@ -65,6 +65,79 @@ function initChips() {
   });
 }
 
+// ===== AVATAR (表情つきキャラクター) =====
+const MOUTHS = {
+  neutral:    'M40 62 Q50 70 60 62',
+  happy:      'M37 60 Q50 77 63 60',
+  laugh:      'M38 60 Q50 80 62 60 Q50 70 38 60 Z',
+  surprised:  'M45 63 Q50 59 55 63 Q50 72 45 63 Z',
+  curious:    'M42 63 Q50 69 58 63',
+  thinking:   'M45 65 Q50 64 55 66',
+  talkClosed: 'M43 63 Q50 66 57 63',
+  talkOpen:   'M41 61 Q50 75 59 61',
+};
+
+const avatar = (() => {
+  const svg = () => document.getElementById('sp-avatar');
+  const mouthEl = () => document.getElementById('sp-avatar-mouth');
+  let talkTimer = null, safetyTimer = null, revertTimer = null;
+
+  function setMouth(d, filled) {
+    const m = mouthEl(); if (!m) return;
+    m.setAttribute('d', d);
+    m.classList.toggle('filled', !!filled);
+  }
+  function exp(name) {
+    const s = svg(); if (!s) return;
+    s.setAttribute('data-exp', name);
+    setMouth(MOUTHS[name] || MOUTHS.neutral, name === 'laugh' || name === 'surprised');
+  }
+  function state(st) {
+    const s = svg(); if (!s) return;
+    s.setAttribute('data-state', st);
+    if (st === 'thinking') setMouth(MOUTHS.thinking, false);
+    if (st === 'listening') setMouth(MOUTHS.neutral, false);
+  }
+  function react(emotion) {
+    exp(emotion);
+    clearTimeout(revertTimer);
+    revertTimer = setTimeout(() => {
+      const s = svg();
+      if (s && s.getAttribute('data-state') !== 'talking') exp('neutral');
+    }, 2800);
+  }
+  function startTalking(maxMs) {
+    state('talking');
+    let open = false;
+    clearInterval(talkTimer);
+    talkTimer = setInterval(() => {
+      open = !open;
+      setMouth(open ? MOUTHS.talkOpen : MOUTHS.talkClosed, open);
+    }, 170);
+    clearTimeout(safetyTimer);
+    if (maxMs) safetyTimer = setTimeout(() => stopTalking(), maxMs);
+  }
+  function stopTalking() {
+    clearInterval(talkTimer); talkTimer = null;
+    clearTimeout(safetyTimer);
+    state('idle'); exp('neutral');
+  }
+  function reset() {
+    clearInterval(talkTimer); clearTimeout(safetyTimer); clearTimeout(revertTimer);
+    state('idle'); exp('neutral');
+  }
+  return { exp, state, react, startTalking, stopTalking, reset };
+})();
+
+function inferEmotion(text) {
+  const t = (text || '').toLowerCase();
+  if (/\b(haha|haha|lol|hehe)\b/.test(t) || /😂|😄|😆|🤣/.test(text)) return 'laugh';
+  if (/(wow|whoa|no way|really\?|amazing|awesome|incredible|congrat|fantastic|great job|well done|impressive)/.test(t)) return 'surprised';
+  if (/!/.test(text)) return 'happy';
+  if (/\?\s*$/.test((text || '').trim())) return 'curious';
+  return 'happy';
+}
+
 // ===== PERSONA SELECTION =====
 window.selectPersona = function(btn) {
   document.querySelectorAll('.sp-persona-btn').forEach(b => b.classList.remove('active'));
@@ -96,7 +169,9 @@ window.startConversation = async function() {
   showScreen('sp-screen-chat');
   const personaLabel = currentPersonaId === 'custom' ? 'Custom' :
     { tutor: 'Tutor', friend: 'Friend', strict: 'Strict', business: 'Business' }[currentPersonaId];
-  document.getElementById('sp-chat-title').textContent = personaLabel;
+  const nameEl = document.getElementById('sp-avatar-name');
+  if (nameEl) nameEl.textContent = personaLabel;
+  avatar.reset();
 
   // Firebaseにセッション枠を確保
   if (uid && db) {
@@ -116,6 +191,7 @@ window.startConversation = async function() {
 // ===== AI TURN =====
 async function aiTurn(messages, systemPrompt, isPrimer = false) {
   showThinking(true);
+  avatar.state('thinking');
   try {
     const body = {
       model: 'claude-sonnet-4-6',
@@ -143,13 +219,16 @@ async function aiTurn(messages, systemPrompt, isPrimer = false) {
     await logTurn('ai', aiText);
 
     showThinking(false);
+    avatar.react(inferEmotion(aiText));
     if (voiceOn) {
-      speak(aiText, 0.95, () => maybeAutoMic());
+      avatar.startTalking(aiText.length * 80 + 1500);
+      speak(aiText, 0.95, () => { avatar.stopTalking(); maybeAutoMic(); });
     } else {
       maybeAutoMic();
     }
   } catch (e) {
     showThinking(false);
+    avatar.state('idle');
     appendBubble('ai', '⚠ Connection error. Please try again.');
   }
 }
@@ -243,6 +322,8 @@ function setListeningState(val) {
   if (btn) btn.classList.toggle('listening', val);
   if (ripple) ripple.classList.toggle('active', val);
   if (input) input.classList.toggle('listening', val);
+  if (val) avatar.state('listening');
+  else if (document.getElementById('sp-avatar')?.getAttribute('data-state') === 'listening') avatar.state('idle');
 }
 
 function maybeAutoMic() {
@@ -260,7 +341,9 @@ window.toggleVoice = function() {
 // ===== REPLAY =====
 function replayText(text) {
   speechSynthesis?.cancel();
-  speak(text, 0.95);
+  avatar.react(inferEmotion(text));
+  avatar.startTalking(text.length * 80 + 1500);
+  speak(text, 0.95, () => avatar.stopTalking());
 }
 
 // ===== FIREBASE LOG =====
@@ -320,6 +403,7 @@ document.getElementById('sp-input')?.addEventListener('input', autoResizeInput);
 window.endConversation = function() {
   stopListening();
   speechSynthesis?.cancel();
+  avatar.reset();
   conversationHistory = [];
   sessionLogRef = null;
   turnIndex = 0;
