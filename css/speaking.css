@@ -293,8 +293,9 @@
   background: var(--surface);
   outline: none;
   resize: none;
-  max-height: 110px;
-  line-height: 1.45;
+  min-height: 72px;
+  max-height: 160px;
+  line-height: 1.55;
   box-sizing: border-box;
 }
 .sp-input:focus { border-color: var(--accent); }
