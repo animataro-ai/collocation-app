@@ -1,1 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Speaking Room – Chank Master</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/css/speaking.css">
+</head>
+<body>
 
+<!-- ローディング画面 -->
+<div id="loading-screen">
+  <div class="loading-logo">Speaking Room</div>
+  <div class="loading-bar" id="loading-bar"><div class="loading-bar-fill"></div></div>
+  <div class="loading-status" id="loading-status">Connecting...</div>
+  <div id="login-ui" style="display:none; margin-top:20px; text-align:center; width:100%; max-width:320px; margin-left:auto; margin-right:auto;">
+    <button onclick="window.googleLogin()" style="
+      background:#fff; border:2px solid #ddd; border-radius:10px;
+      padding:12px 20px; font-family:'Outfit',sans-serif; font-size:15px;
+      font-weight:700; cursor:pointer; display:flex; align-items:center;
+      gap:10px; width:100%; margin-bottom:10px; justify-content:center;">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20">
+      Sign in with Google
+    </button>
+    <button onclick="window.anonLogin()" style="
+      background:none; border:none; font-family:'Nunito',sans-serif;
+      font-size:13px; color:#aaa; cursor:pointer; text-decoration:underline;">
+      Continue without account
+    </button>
+  </div>
+</div>
+
+<div class="sync-indicator" id="sync-indicator"></div>
+
+<div id="app">
+
+  <!-- ホーム画面 -->
+  <div class="screen active" id="sp-screen-home">
+    <div class="home-header">
+      <div class="home-logo">Speaking Room</div>
+      <div class="home-sub">English Conversation Practice</div>
+    </div>
+
+    <!-- 人格選択 -->
+    <div class="sp-section-label">Partner</div>
+    <div class="sp-persona-grid" id="sp-persona-grid">
+      <button class="sp-persona-btn active" data-id="tutor" onclick="selectPersona(this)">
+        <span class="sp-persona-icon">👩‍🏫</span>
+        <span class="sp-persona-name">Tutor</span>
+        <span class="sp-persona-desc">Warm &amp; patient</span>
+      </button>
+      <button class="sp-persona-btn" data-id="friend" onclick="selectPersona(this)">
+        <span class="sp-persona-icon">😊</span>
+        <span class="sp-persona-name">Friend</span>
+        <span class="sp-persona-desc">Casual &amp; fun</span>
+      </button>
+      <button class="sp-persona-btn" data-id="strict" onclick="selectPersona(this)">
+        <span class="sp-persona-icon">📋</span>
+        <span class="sp-persona-name">Strict</span>
+        <span class="sp-persona-desc">Precise corrections</span>
+      </button>
+      <button class="sp-persona-btn" data-id="business" onclick="selectPersona(this)">
+        <span class="sp-persona-icon">💼</span>
+        <span class="sp-persona-name">Business</span>
+        <span class="sp-persona-desc">Professional</span>
+      </button>
+      <button class="sp-persona-btn sp-persona-custom" data-id="custom" onclick="selectPersona(this)">
+        <span class="sp-persona-icon">✏️</span>
+        <span class="sp-persona-name">Custom</span>
+        <span class="sp-persona-desc">Define your own</span>
+      </button>
+    </div>
+
+    <div id="sp-custom-area" style="display:none">
+      <textarea id="sp-custom-text" class="sp-custom-textarea"
+        placeholder="Describe the persona… e.g. A sarcastic but supportive New Yorker who loves movies."
+        rows="3"></textarea>
+    </div>
+
+    <!-- 話題 -->
+    <div class="sp-section-label" style="margin-top:14px;">Topic <span style="font-weight:400;color:var(--text2);">(optional)</span></div>
+    <input id="sp-topic-input" class="sp-topic-input" type="text"
+      placeholder="e.g. my weekend, travel in Malaysia, movies…">
+    <div class="sp-topic-chips">
+      <button class="sp-chip" onclick="setTopic('my day')">my day</button>
+      <button class="sp-chip" onclick="setTopic('travel')">travel</button>
+      <button class="sp-chip" onclick="setTopic('food')">food</button>
+      <button class="sp-chip" onclick="setTopic('work')">work</button>
+      <button class="sp-chip" onclick="setTopic('movies')">movies</button>
+    </div>
+
+    <button class="btn btn-primary" id="sp-start-btn" onclick="startConversation()">Start Conversation →</button>
+
+    <button onclick="goBackToMain()" class="sp-back-link">← Back to Chank Master</button>
+  </div>
+
+  <!-- 会話画面 -->
+  <div class="screen" id="sp-screen-chat">
+    <div class="sp-chat-header">
+      <button onclick="endConversation()" class="sp-end-btn">✕ End</button>
+      <div class="sp-chat-title" id="sp-chat-title">Conversation</div>
+      <button onclick="toggleVoice()" class="sp-voice-toggle" id="sp-voice-toggle" title="Toggle voice">🔊</button>
+    </div>
+
+    <div class="sp-messages" id="sp-messages"></div>
+
+    <div class="sp-thinking" id="sp-thinking" style="display:none">
+      <span class="sp-dot"></span><span class="sp-dot"></span><span class="sp-dot"></span>
+    </div>
+
+    <div class="sp-composer" id="sp-composer">
+      <div class="sp-mic-wrap">
+        <div class="sp-mic-ripple" id="sp-mic-ripple"></div>
+        <button class="sp-mic-btn" id="sp-mic-btn" onclick="toggleMic()" title="Speak">🎤</button>
+      </div>
+      <textarea class="sp-input" id="sp-input" rows="1"
+        placeholder="Type or tap 🎤 to speak…"
+        onkeydown="handleKey(event)"></textarea>
+      <button class="sp-send-btn" id="sp-send-btn" onclick="sendMessage()">→</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let _dbgCount = 0, _dbgTimer = null;
+document.addEventListener('keydown', function(e) {
+  if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+    e.preventDefault();
+    const p = document.getElementById('srs-panel');
+    if (p) p.style.display = p.style.display === 'none' ? 'block' : 'none';
+  }
+});
+</script>
+<script type="module" src="/js/core.js"></script>
+<script type="module" src="/js/speaking.js"></script>
+
+</body>
+</html>
