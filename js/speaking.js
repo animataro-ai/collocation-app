@@ -32,6 +32,11 @@ Rules:
 let currentPersonaId = 'tutor';
 let customPersonaText = '';
 let currentTopic = '';
+let currentModel = 'claude-sonnet-4-6';
+const MODELS = {
+  'claude-sonnet-4-6': 'Sonnet 4.6',
+  'claude-haiku-4-5-20251001': 'Haiku 4.5',
+};
 let conversationHistory = []; // [{role, content}]
 let sessionLogRef = null;     // Firebase ref for this session
 let turnIndex = 0;
@@ -154,6 +159,27 @@ window.setTopic = function(t) {
   });
 };
 
+// ===== MODEL SELECTION =====
+function syncModelUI() {
+  document.querySelectorAll('.sp-model-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.model === currentModel);
+  });
+  const pill = document.getElementById('sp-model-pill');
+  if (pill) pill.textContent = MODELS[currentModel];
+}
+
+window.selectModel = function(btn) {
+  currentModel = btn.dataset.model;
+  syncModelUI();
+};
+
+window.toggleModel = function() {
+  const keys = Object.keys(MODELS);
+  const idx = keys.indexOf(currentModel);
+  currentModel = keys[(idx + 1) % keys.length];
+  syncModelUI();
+};
+
 // ===== START =====
 window.startConversation = async function() {
   currentTopic = document.getElementById('sp-topic-input').value.trim();
@@ -172,6 +198,7 @@ window.startConversation = async function() {
   const nameEl = document.getElementById('sp-avatar-name');
   if (nameEl) nameEl.textContent = personaLabel;
   avatar.reset();
+  syncModelUI();
 
   // Firebaseにセッション枠を確保
   if (uid && db) {
@@ -194,7 +221,7 @@ async function aiTurn(messages, systemPrompt, isPrimer = false) {
   avatar.state('thinking');
   try {
     const body = {
-      model: 'claude-sonnet-4-6',
+      model: currentModel,
       max_tokens: 1000,
       system: systemPrompt || window._spSystem,
       messages,
