@@ -89,6 +89,19 @@
       <button class="sp-chip" onclick="setTopic('movies')">movies</button>
     </div>
 
+    <!-- モデル選択 -->
+    <div class="sp-section-label" style="margin-top:14px;">Model</div>
+    <div class="sp-model-grid" id="sp-model-grid">
+      <button class="sp-model-btn active" data-model="claude-sonnet-4-6" onclick="selectModel(this)">
+        <span class="sp-model-name">Sonnet 4.6</span>
+        <span class="sp-model-tag">丁寧・指導の質</span>
+      </button>
+      <button class="sp-model-btn" data-model="claude-haiku-4-5-20251001" onclick="selectModel(this)">
+        <span class="sp-model-name">Haiku 4.5</span>
+        <span class="sp-model-tag">高速・軽快</span>
+      </button>
+    </div>
+
     <button class="btn btn-primary" id="sp-start-btn" onclick="startConversation()">Start Conversation →</button>
 
     <button onclick="goBackToMain()" class="sp-back-link">← Back to Chank Master</button>
@@ -98,6 +111,7 @@
   <div class="screen" id="sp-screen-chat">
     <div class="sp-chat-header">
       <button onclick="endConversation()" class="sp-end-btn">✕ End</button>
+      <button class="sp-model-pill" id="sp-model-pill" onclick="toggleModel()" title="モデルを切替">Sonnet 4.6</button>
       <button onclick="toggleVoice()" class="sp-voice-toggle" id="sp-voice-toggle" title="Toggle voice">🔊</button>
     </div>
 
