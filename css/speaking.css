@@ -385,3 +385,54 @@
 @media (prefers-reduced-motion: reduce) {
   .sp-avatar, .sp-avatar .av-eye { animation: none !important; }
 }
+
+/* ===== モデル選択（ホーム画面） ===== */
+.sp-model-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.sp-model-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 11px 14px;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color .15s, background .15s;
+}
+.sp-model-btn:hover { border-color: var(--accent); }
+.sp-model-btn.active { border-color: var(--accent); background: var(--accent-light); }
+.sp-model-name {
+  font-family: 'Outfit', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+.sp-model-tag {
+  font-family: 'Nunito', sans-serif;
+  font-size: 11px;
+  color: var(--text2);
+}
+
+/* ===== モデル切替ピル（会話ヘッダー） ===== */
+.sp-model-pill {
+  font-family: 'Outfit', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-light);
+  border: 2px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 12px;
+  cursor: pointer;
+  letter-spacing: .5px;
+  transition: border-color .15s;
+}
+.sp-model-pill:hover { border-color: var(--accent); }
+.sp-model-pill::before { content: "⇄ "; opacity: .7; }
